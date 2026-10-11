@@ -1146,7 +1146,13 @@ export async function apiPutPostDelete(
   method,
   endpoint,
   payload,
-  {isJson = true, dbChanged = true, requireFresh = false, skipAuth = false} = {}
+  {
+    isJson = true,
+    dbChanged = true,
+    requireFresh = false,
+    skipAuth = false,
+    ifMatch = '',
+  } = {}
 ) {
   let resJson
   let status
@@ -1167,6 +1173,10 @@ export async function apiPutPostDelete(
     }
     if (isJson) {
       headers['Content-Type'] = 'application/json'
+    }
+    if (ifMatch) {
+      // the API answers 412 if the record changed since it was read
+      headers['If-Match'] = ifMatch
     }
     const resp = await fetch(`${__APIHOST__}${endpoint}`, {
       method,

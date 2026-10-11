@@ -1,6 +1,10 @@
 // test/unit/familySaveHelpers.test.js
 import {describe, it, expect} from 'vitest'
-import {ensurePlaces, fireUndo} from '../../src/family/saveHelpers.js'
+import {
+  ensurePlaces,
+  fireUndo,
+  errorMessage,
+} from '../../src/family/saveHelpers.js'
 
 const values = (birthPlace, deathPlace) => ({
   birth: {date: null, ...birthPlace},
@@ -73,5 +77,22 @@ describe('fireUndo', () => {
       transaction: [{a: 1}, {b: 2}],
       redirect: 'person/I1',
     })
+  })
+})
+
+describe('errorMessage', () => {
+  it('explains a conflict with someone else’s change', () => {
+    expect(
+      errorMessage({
+        error: 'Resource does not match provided ETag',
+        errorDetail: {status: 412},
+      })
+    ).toBe('Someone else has just changed this. Please try again.')
+  })
+  it('passes other errors through', () => {
+    expect(errorMessage({error: 'boom', errorDetail: {status: 500}})).toBe(
+      'boom'
+    )
+    expect(errorMessage({error: 'offline'})).toBe('offline')
   })
 })
