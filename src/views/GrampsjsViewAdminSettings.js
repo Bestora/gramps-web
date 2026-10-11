@@ -22,6 +22,7 @@ import {
   TREE_CONFIG_HOME_PAGE_IMAGE,
   TREE_CONFIG_HIDDEN_MENUS,
   isMenuHidden,
+  makeShareLink,
 } from '../api.js'
 import {MENU_ITEMS} from '../components/GrampsjsMainMenu.js'
 import {DEFAULT_PRIMARY, DEFAULT_SECONDARY} from '../theme.js'
@@ -390,6 +391,26 @@ export class GrampsjsViewAdminSettings extends GrampsjsView {
         <p>
           <md-outlined-button @click="${this._renameTree}"
             >${this._('_Rename')}</md-outlined-button
+          >
+        </p>
+
+        <h3>${this._('Share link')}</h3>
+        <p>
+          ${this._(
+            'Enter the password shared by the family accounts. Each account is named after a lower-cased surname. Whoever has the link only needs to enter their surname.'
+          )}
+        </p>
+        <p>
+          <md-filled-text-field
+            class="settings-text-field"
+            id="share-password-field"
+            type="password"
+            label="${this._('Password')}"
+          ></md-filled-text-field>
+        </p>
+        <p>
+          <md-outlined-button @click="${this._copyShareLink}"
+            >${this._('Copy link')}</md-outlined-button
           >
         </p>
 
@@ -1246,6 +1267,15 @@ export class GrampsjsViewAdminSettings extends GrampsjsView {
       this._primaryColor = DEFAULT_PRIMARY
       this._secondaryColor = DEFAULT_SECONDARY
     }
+  }
+
+  async _copyShareLink() {
+    const password = this.renderRoot.querySelector(
+      '#share-password-field'
+    ).value
+    if (!password) return
+    await navigator.clipboard.writeText(makeShareLink(password))
+    fireEvent(this, 'grampsjs:notification', {message: this._('Link copied')})
   }
 
   async _toggleMenu(key, visible) {

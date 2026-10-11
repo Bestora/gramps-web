@@ -15,6 +15,7 @@ import {
   apiResetPassword,
   apiGetOIDCConfig,
   apiOIDCLogin,
+  getShareKey,
 } from '../api.js'
 import {fireEvent} from '../util.js'
 import {GrampsjsAppStateMixin} from '../mixins/GrampsjsAppStateMixin.js'
@@ -191,6 +192,7 @@ class GrampsjsLogin extends GrampsjsAppStateMixin(LitElement) {
       credentials: {type: Object},
       tree: {type: String},
       oidcConfig: {type: Object},
+      shareKey: {type: String},
     }
   }
 
@@ -201,6 +203,7 @@ class GrampsjsLogin extends GrampsjsAppStateMixin(LitElement) {
     this.credentials = {}
     this.tree = ''
     this.oidcConfig = {}
+    this.shareKey = getShareKey()
   }
 
   async connectedCallback() {
@@ -226,6 +229,9 @@ class GrampsjsLogin extends GrampsjsAppStateMixin(LitElement) {
   render() {
     if (this.resetpw) {
       return this._renderResetPw()
+    }
+    if (this.shareKey) {
+      return this._renderShareLogin()
     }
     return this._renderLogin()
   }
@@ -330,6 +336,78 @@ class GrampsjsLogin extends GrampsjsAppStateMixin(LitElement) {
         </form>
       </div>
     `
+  }
+
+  _renderShareLogin() {
+    return html`
+      <div id="login-container">
+        <form
+          id="login-form"
+          @submit="${this._submitShareLogin}"
+          @keydown="${this._handleFormKeydown}"
+        >
+          <h2>${this._('Welcome!')}</h2>
+          <p>${this._('Please enter your surname to continue.')}</p>
+          <div class="text-field-wrapper">
+            <input
+              id="surname"
+              name="surname"
+              type="text"
+              autocomplete="family-name"
+              placeholder=" "
+              required
+            />
+            <label for="surname">${this._('Surname')}</label>
+          </div>
+          <div class="button-container">
+            <md-filled-button type="submit">
+              ${this._('Continue')}
+            </md-filled-button>
+          </div>
+          <mwc-circular-progress
+            indeterminate
+            density="-7"
+            closed
+            id="login-progress"
+            style="display:none; margin-top: 0.5em;"
+          >
+          </mwc-circular-progress>
+          <p class="forgot-password">
+            <span
+              class="link"
+              @click="${() => {
+                this.shareKey = null
+              }}"
+              >${this._('Log in with username and password')}</span
+            >
+          </p>
+        </form>
+      </div>
+    `
+  }
+
+  async _submitShareLogin(e) {
+    e?.preventDefault()
+    e?.stopPropagation()
+    // accounts are named after the lower-cased surname, e.g. "müller"
+    const username = this.shadowRoot
+      .getElementById('surname')
+      ?.value.trim()
+      .toLowerCase()
+    if (!username) {
+      return
+    }
+    const submitProgress = this.shadowRoot.getElementById('login-progress')
+    submitProgress.style.display = 'block'
+    submitProgress.closed = false
+    const res = await apiGetTokens(username, this.shareKey)
+    if ('error' in res) {
+      submitProgress.style.display = 'none'
+      submitProgress.closed = true
+      this._showError(this._('Unknown surname. Please check the spelling.'))
+    } else {
+      document.location.href = '/'
+    }
   }
 
   _handleNav(path) {

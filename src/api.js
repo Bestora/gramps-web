@@ -201,6 +201,37 @@ export function isMenuHidden(appState, key) {
     .includes(key)
 }
 
+const SHARE_KEY = 'grampsjs_share_key'
+
+// ponytail: a share link carries the shared password of the family accounts
+// (one account per surname) in the URL fragment, so it never reaches server
+// logs. Anyone holding the link can log in as any of these accounts.
+export function getShareKey() {
+  const match = window.location.hash.match(/share=([^&]+)/)
+  if (match) {
+    try {
+      localStorage.setItem(SHARE_KEY, decodeURIComponent(match[1]))
+    } catch (e) {
+      // ignore
+    }
+    window.history.replaceState(
+      null,
+      '',
+      window.location.pathname + window.location.search
+    )
+    return decodeURIComponent(match[1])
+  }
+  try {
+    return localStorage.getItem(SHARE_KEY)
+  } catch (e) {
+    return null
+  }
+}
+
+export function makeShareLink(password) {
+  return `${window.location.origin}/login#share=${encodeURIComponent(password)}`
+}
+
 export function getTreeConfig() {
   try {
     const treeId = getTreeId() ?? 'unknown'

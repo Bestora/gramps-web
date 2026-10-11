@@ -19,6 +19,7 @@ import {
   cleanOldDrafts,
   TREE_CONFIG_APP_TITLE,
   isMenuHidden,
+  getShareKey,
   TREE_CONFIG_PRIMARY_COLOR,
   TREE_CONFIG_SECONDARY_COLOR,
 } from './api.js'
@@ -140,6 +141,7 @@ export class GrampsJs extends LitElement {
 
   constructor() {
     super()
+    getShareKey() // store #share= before routing to /login drops the hash
     this.appState = getInitialAppState()
     this.progress = false
     this._saving = false
