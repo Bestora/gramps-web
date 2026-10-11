@@ -125,8 +125,23 @@ export function layoutNeighborhood(
     elbow(far(focus), near(item))
   }
 
-  // parents, spaced so that both grandparent pairs fit
-  const fc = mid(focus)
+  // siblings above the person, in the order of the parent family
+  const siblings = model.siblings ?? []
+  const siblingItems = siblings.map((sibling, i) =>
+    place(
+      `sibling-${sibling.handle}`,
+      2,
+      mid(focus) - (siblings.length - i) * (ext(CARD) + SIB_GAP),
+      CARD,
+      {kind: 'person', handle: sibling.handle, childCount: sibling.childCount}
+    )
+  )
+
+  // parents, centred on their children and spaced so that both grandparent
+  // pairs fit
+  const fc = siblingItems.length
+    ? (siblingItems[0].s + focus.s + focus.sl) / 2
+    : mid(focus)
   const pairExt = 2 * ext(SMALL) + SIB_GAP
   const parentDist = Math.max(ext(CARD), pairExt) + SIB_GAP
   const sides = [
@@ -134,6 +149,7 @@ export function layoutNeighborhood(
     ['mother', fc + parentDist / 2, 'maternal'],
   ]
   let placedParentGhost = false
+  let firstParent = null
   for (const [role, center, side] of sides) {
     const handle = model.parents[role]
     if (!handle) {
@@ -153,6 +169,7 @@ export function layoutNeighborhood(
       handle,
     })
     elbow(far(parent), near(focus))
+    firstParent ??= parent
     const gp = model.grandparents[side]
     const offset = (ext(SMALL) + SIB_GAP) / 2
     for (const [gpRole, gpCenter] of [
@@ -166,6 +183,10 @@ export function layoutNeighborhood(
       })
       elbow(far(item), near(parent))
     }
+  }
+
+  if (firstParent) {
+    for (const item of siblingItems) elbow(far(firstParent), near(item))
   }
 
   // drop empty leading generation columns and shift into positive space

@@ -74,3 +74,38 @@ describe('buildNeighborhood', () => {
     expect(buildNeighborhood(g, 'A').partners).toEqual([])
   })
 })
+
+describe('buildNeighborhood siblings and duplicate families', () => {
+  // Dennis (D) with sisters K1 and K2; his parents H and E have the children
+  // in fHE and, by mistake, also an empty second family fDup
+  const fHE = fam('fHE', 'H', 'E', ['D', 'K1', 'K2'])
+  const fDup = fam('fDup', 'H', 'E', [])
+  const g = new FamilyGraph([
+    person('D', {parents: fHE}),
+    person('K1', {parents: fHE}),
+    person('K2', {parents: fHE}),
+    person('H', {families: [fHE, fDup]}),
+    person('E', {families: [fHE, fDup]}),
+  ])
+
+  it('lists the siblings from the parent family, without the person', () => {
+    expect(buildNeighborhood(g, 'D').siblings).toEqual([
+      {handle: 'K1', childCount: 0},
+      {handle: 'K2', childCount: 0},
+    ])
+  })
+
+  it('has no siblings without a parent family', () => {
+    expect(
+      buildNeighborhood(new FamilyGraph([person('X')]), 'X').siblings
+    ).toEqual([])
+  })
+
+  it('shows one partner once, with the children of all shared families', () => {
+    const n = buildNeighborhood(g, 'H')
+    expect(n.partners).toHaveLength(1)
+    expect(n.partners[0].partner).toBe('E')
+    expect(n.partners[0].familyHandle).toBe('fHE')
+    expect(n.partners[0].children.map(c => c.handle)).toEqual(['D', 'K1', 'K2'])
+  })
+})

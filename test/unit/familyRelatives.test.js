@@ -5,6 +5,7 @@ import {
   parentRole,
   checkRelative,
   linkRelative,
+  unlinkRelative,
 } from '../../src/family/relatives.js'
 
 const fam = (handle, father, mother, children = []) => ({
@@ -28,13 +29,16 @@ const annaWith = ({parents = fam('fP', 'H', '', ['A']), families} = {}) => ({
 })
 
 // The server state the fake API answers with: people and families by handle
-function fakeAppState({person, families = {}}) {
+function fakeAppState({person, people = {}, families = {}}) {
   const calls = []
   return {
     calls,
     apiGet: async url => {
       calls.push({method: 'GET', url})
-      if (url.startsWith('/api/people/')) return {data: person}
+      if (url.startsWith('/api/people/')) {
+        const handle = url.split('/')[3].split('?')[0]
+        return {data: people[handle] ?? person}
+      }
       const handle = url.split('/')[3]
       const family = families[handle]
       return family
@@ -48,6 +52,10 @@ function fakeAppState({person, families = {}}) {
     apiPost: async (url, body, options) => {
       calls.push({method: 'POST', url, body, options})
       return {data: [{type: 'add', url}]}
+    },
+    apiDelete: async (url, options) => {
+      calls.push({method: 'DELETE', url, options})
+      return {data: [{type: 'delete', url}]}
     },
   }
 }
@@ -279,5 +287,146 @@ describe('linkRelative', () => {
       handle: 'N',
     })
     expect(res).toEqual({error: 'offline'})
+  })
+})
+
+describe('duplicate families', () => {
+  // Dennis (D) has a mother E but no father; E and H already have an empty
+  // family fDup because H was first added as E's partner
+  const fP = fam('fP', '', 'E', ['D', 'K'])
+  const fDup = fam('fDup', 'H', 'E', [])
+  const dennis = {
+    handle: 'D',
+    gender: 1,
+    extended: {primary_parent_family: fP, families: []},
+  }
+  const evelyn = {handle: 'E', gender: 0, extended: {families: [fP, fDup]}}
+
+  it('removes the empty family of the two parents after adding a parent', async () => {
+    const appState = fakeAppState({
+      people: {D: dennis, E: evelyn},
+      families: {fP, fDup},
+    })
+    const res = await linkRelative(appState, {
+      relation: RELATION.PARENT,
+      focusHandle: 'D',
+      handle: 'H',
+      gender: 1,
+    })
+    expect(writes(appState).map(c => `${c.method} ${c.url}`)).toEqual([
+      'PUT /api/families/fP',
+      'DELETE /api/families/fDup',
+    ])
+    expect(res.transaction).toHaveLength(2)
+  })
+
+  it('keeps a shared family that has children or events', async () => {
+    const busy = {...fDup, event_ref_list: [{ref: 'marriage'}]}
+    const appState = fakeAppState({
+      people: {
+        D: dennis,
+        E: {...evelyn, extended: {families: [fP, busy]}},
+      },
+      families: {fP, fDup: busy},
+    })
+    await linkRelative(appState, {
+      relation: RELATION.PARENT,
+      focusHandle: 'D',
+      handle: 'H',
+      gender: 1,
+    })
+    expect(writes(appState).map(c => c.method)).toEqual(['PUT'])
+  })
+
+  it('makes a new partner the other parent of a chosen family', async () => {
+    const appState = fakeAppState({
+      person: evelyn,
+      families: {fP},
+    })
+    await linkRelative(appState, {
+      relation: RELATION.PARTNER,
+      focusHandle: 'E',
+      handle: 'H',
+      familyHandle: 'fP',
+    })
+    const [put] = writes(appState)
+    expect(put.method).toBe('PUT')
+    expect(put.url).toBe('/api/families/fP')
+    expect(put.body.father_handle).toBe('H')
+    expect(put.body.mother_handle).toBe('E')
+  })
+
+  it('refuses to put a partner into a family that already has two parents', () => {
+    expect(
+      checkRelative(evelyn, {relation: RELATION.PARTNER, familyHandle: 'fDup'})
+    ).toBe('This family already has two parents.')
+  })
+})
+
+describe('unlinkRelative', () => {
+  const fP = fam('fP', 'H', 'E', ['D', 'K'])
+  const fC = fam('fC', 'D', 'X', ['C1'])
+  const fAlone = fam('fAlone', 'D', 'Y', [])
+
+  it('takes a child out of a family and keeps the family', async () => {
+    const appState = fakeAppState({families: {fC}})
+    const res = await unlinkRelative(appState, {
+      kind: 'child',
+      familyHandle: 'fC',
+      handle: 'C1',
+    })
+    const [put] = writes(appState)
+    expect(put.url).toBe('/api/families/fC')
+    expect(put.body.child_ref_list).toEqual([])
+    expect(put.body.father_handle).toBe('D')
+    expect(res.transaction).toHaveLength(1)
+  })
+
+  it('takes the person out of the parent family', async () => {
+    const appState = fakeAppState({families: {fP}})
+    await unlinkRelative(appState, {
+      kind: 'parents',
+      familyHandle: 'fP',
+      handle: 'D',
+    })
+    expect(writes(appState)[0].body.child_ref_list.map(c => c.ref)).toEqual([
+      'K',
+    ])
+  })
+
+  it('removes a partner and deletes the family left with one person', async () => {
+    const appState = fakeAppState({families: {fAlone}})
+    await unlinkRelative(appState, {
+      kind: 'partner',
+      familyHandle: 'fAlone',
+      handle: 'Y',
+    })
+    expect(writes(appState).map(c => `${c.method} ${c.url}`)).toEqual([
+      'DELETE /api/families/fAlone',
+    ])
+  })
+
+  it('keeps a family with children when a partner is removed', async () => {
+    const appState = fakeAppState({families: {fC}})
+    await unlinkRelative(appState, {
+      kind: 'partner',
+      familyHandle: 'fC',
+      handle: 'X',
+    })
+    const [put] = writes(appState)
+    expect(put.method).toBe('PUT')
+    expect(put.body.mother_handle).toBe('')
+    expect(put.body.father_handle).toBe('D')
+  })
+
+  it('reports a failed read', async () => {
+    const appState = fakeAppState({families: {}})
+    const res = await unlinkRelative(appState, {
+      kind: 'child',
+      familyHandle: 'gone',
+      handle: 'C1',
+    })
+    expect(res.error).toBeTruthy()
+    expect(writes(appState)).toHaveLength(0)
   })
 })

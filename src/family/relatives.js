@@ -50,14 +50,37 @@ export function checkRelative(focusPerson, {relation, gender, familyHandle}) {
     return takenMessage(gender)
   }
   if (
-    relation === RELATION.CHILD &&
-    familyHandle &&
-    !(focusPerson.extended?.families ?? []).some(f => f.handle === familyHandle)
+    (relation === RELATION.CHILD || relation === RELATION.PARTNER) &&
+    familyHandle
   ) {
-    return 'The chosen family no longer exists.'
+    const family = (focusPerson.extended?.families ?? []).find(
+      f => f.handle === familyHandle
+    )
+    if (!family) return 'The chosen family no longer exists.'
+    if (
+      relation === RELATION.PARTNER &&
+      family.father_handle &&
+      family.mother_handle
+    ) {
+      return 'This family already has two parents.'
+    }
   }
   return ''
 }
+
+// A family that records nothing but its members
+const EXTRAS = [
+  'event_ref_list',
+  'media_list',
+  'note_list',
+  'citation_list',
+  'attribute_list',
+  'lds_ord_list',
+]
+const hasNoExtras = family => EXTRAS.every(key => !family[key]?.length)
+const memberCount = family =>
+  [family.father_handle, family.mother_handle].filter(Boolean).length +
+  (family.child_ref_list?.length ?? 0)
 
 export async function fetchFocus(appState, handle) {
   const res = await appState.apiGet(
@@ -107,6 +130,17 @@ async function link(appState, focus, {relation, handle, gender, familyHandle}) {
       })
     }
     case RELATION.PARTNER: {
+      if (familyHandle) {
+        // the new partner is the other parent of this family's children
+        return updateFamily(appState, familyHandle, fresh => {
+          let slot = null
+          if (fresh.father_handle === focus.handle) slot = 'mother_handle'
+          if (fresh.mother_handle === focus.handle) slot = 'father_handle'
+          return slot && !fresh[slot]
+            ? {[slot]: handle}
+            : {error: 'This family already has two parents.'}
+        })
+      }
       const slot = slotOf(focus)
       return newFamily(appState, {
         [slot]: focus.handle,
@@ -135,6 +169,28 @@ async function link(appState, focus, {relation, handle, gender, familyHandle}) {
   }
 }
 
+// After a parent is added: an empty family of the same two parents (e.g.
+// the new parent was first added as the other one's partner) would show up
+// as a duplicate, so it is removed
+async function removeEmptySharedFamilies(appState, parent, other, keepHandle) {
+  const fresh = await fetchFocus(appState, parent)
+  if ('error' in fresh) return []
+  const duplicates = (fresh.person.extended?.families ?? []).filter(
+    f =>
+      f.handle !== keepHandle &&
+      [f.father_handle, f.mother_handle].includes(other) &&
+      !f.child_ref_list?.length &&
+      hasNoExtras(f)
+  )
+  const transaction = []
+  for (const family of duplicates) {
+    // eslint-disable-next-line no-await-in-loop
+    const res = await appState.apiDelete(`/api/families/${family.handle}`)
+    if (!('error' in res)) transaction.push(...(res.data ?? []))
+  }
+  return transaction
+}
+
 export async function linkRelative(appState, options) {
   const fresh = await fetchFocus(appState, options.focusHandle)
   if ('error' in fresh) return {error: fresh.error}
@@ -142,5 +198,51 @@ export async function linkRelative(appState, options) {
   if (problem) return {error: problem}
   const res = await link(appState, fresh.person, options)
   if ('error' in res) return {error: res.error}
-  return {transaction: res.data ?? []}
+  const transaction = [...(res.data ?? [])]
+  const family = parentFamily(fresh.person)
+  if (options.relation === RELATION.PARENT && family?.handle) {
+    const other =
+      roleFor(family, options.gender) === 'father'
+        ? family.mother_handle
+        : family.father_handle
+    if (other) {
+      transaction.push(
+        ...(await removeEmptySharedFamilies(
+          appState,
+          other,
+          options.handle,
+          family.handle
+        ))
+      )
+    }
+  }
+  return {transaction}
+}
+
+// Removes one connection: a child from a family (kind 'child'), the person
+// from their parent family ('parents') or a partner from a family
+// ('partner'). People stay in the tree; a family left with at most one
+// person and nothing else recorded is deleted.
+export async function unlinkRelative(appState, {kind, familyHandle, handle}) {
+  const res = await appState.apiGet(`/api/families/${familyHandle}`)
+  if ('error' in res) return {error: res.error}
+  const family = clean(res.data)
+  const next = {...family}
+  if (kind === 'partner') {
+    if (next.father_handle === handle) next.father_handle = ''
+    if (next.mother_handle === handle) next.mother_handle = ''
+  } else {
+    next.child_ref_list = (family.child_ref_list ?? []).filter(
+      ref => ref.ref !== handle
+    )
+  }
+  const saved =
+    memberCount(next) <= 1 && hasNoExtras(next)
+      ? await appState.apiDelete(`/api/families/${familyHandle}`)
+      : await appState.apiPut(`/api/families/${familyHandle}`, {
+          _class: 'Family',
+          ...next,
+        })
+  if ('error' in saved) return {error: saved.error}
+  return {transaction: saved.data ?? []}
 }

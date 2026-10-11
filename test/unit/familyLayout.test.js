@@ -178,3 +178,42 @@ describe('layoutNeighborhood ghosts', () => {
     expect(layout.nodes.filter(n => n.relation === 'parent')).toHaveLength(0)
   })
 })
+
+describe.each([ORIENTATION_LTR, ORIENTATION_TTB])(
+  'layoutNeighborhood siblings (%s)',
+  orientation => {
+    const withSiblings = {
+      ...full,
+      siblings: [
+        {handle: 'S1', childCount: 0},
+        {handle: 'S2', childCount: 2},
+      ],
+    }
+    const layout = layoutNeighborhood(withSiblings, orientation, {ghosts: true})
+    const axis = orientation === ORIENTATION_LTR ? 'x' : 'y'
+    const node = h => layout.nodes.find(n => n.handle === h)
+
+    it('puts siblings in the generation of the person', () => {
+      expect(node('S1')[axis]).toBe(node('A')[axis])
+      expect(node('S2')[axis]).toBe(node('A')[axis])
+      expect(node('S2').childCount).toBe(2)
+    })
+
+    it('still never overlaps two nodes', () => {
+      const all = layout.nodes
+      for (let i = 0; i < all.length; i += 1) {
+        for (let j = i + 1; j < all.length; j += 1) {
+          expect(
+            overlaps(all[i], all[j]),
+            `${all[i].key} / ${all[j].key}`
+          ).toBe(false)
+        }
+      }
+    })
+
+    it('connects each sibling to the parents', () => {
+      // 11 lines as before, the child placeholder, and one per sibling
+      expect(layout.edges).toHaveLength(14)
+    })
+  }
+)
