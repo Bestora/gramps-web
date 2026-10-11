@@ -6,8 +6,8 @@
 export const ORIENTATION_LTR = 'ltr'
 export const ORIENTATION_TTB = 'ttb'
 
-const CARD = {w: 184, h: 60}
-const SMALL = {w: 144, h: 44}
+const CARD = {w: 216, h: 60}
+const SMALL = {w: 160, h: 44}
 const PAD = 32
 const SIB_GAP = 16
 const GROUP_GAP = 28

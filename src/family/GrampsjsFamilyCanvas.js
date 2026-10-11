@@ -81,6 +81,8 @@ class GrampsjsFamilyCanvas extends GrampsjsAppStateMixin(LitElement) {
           cursor: default;
         }
         .face {
+          position: relative;
+          overflow: hidden;
           flex: none;
           width: 36px;
           height: 36px;
@@ -93,6 +95,13 @@ class GrampsjsFamilyCanvas extends GrampsjsAppStateMixin(LitElement) {
           color: var(--fm-moss);
           background-size: cover;
           background-position: center;
+        }
+        .face img {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
         }
         .small .face {
           width: 26px;
@@ -290,16 +299,21 @@ class GrampsjsFamilyCanvas extends GrampsjsAppStateMixin(LitElement) {
       node.handle === this.selected && node.kind !== 'small'
         ? 'focus'
         : node.kind
-    const face = card?.imageUrl
-      ? html`<span
-          class="face"
-          style="background-image:url('${card.imageUrl}')"
-        ></span>`
-      : html`<span class="face">${card?.initials ?? '?'}</span>`
+    // initials stay underneath, so a missing photo file still shows them
+    const face = html`<span class="face"
+      >${card?.initials ?? '?'}${card?.imageUrl
+        ? html`<img
+            src="${card.imageUrl}"
+            alt=""
+            @error="${e => e.target.remove()}"
+          />`
+        : ''}</span
+    >`
     const name = node.kind === 'unknown' ? this._('Unknown') : card?.name
     return html`<button
       class="card ${kind}"
       style="left:${node.x}px;top:${node.y}px;width:${node.w}px;height:${node.h}px"
+      title="${name ?? ''}"
       ?disabled="${node.kind === 'unknown'}"
       aria-current="${node.handle === this.selected ? 'true' : 'false'}"
       @click="${() => this._select(node.handle)}"

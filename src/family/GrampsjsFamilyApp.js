@@ -48,10 +48,13 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
       css`
         :host {
           display: grid;
-          grid-template-columns: 1fr 340px;
+          grid-template-columns: 1fr;
           height: 100vh;
           height: 100dvh;
           background: var(--fm-paper);
+        }
+        :host([details]) {
+          grid-template-columns: 1fr 340px;
         }
         .main {
           position: relative;
@@ -195,7 +198,8 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
           color: var(--fm-muted);
         }
         @media (max-width: 991px) {
-          :host {
+          :host,
+          :host([details]) {
             grid-template-columns: 1fr;
           }
           grampsjs-family-details {
@@ -255,6 +259,10 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
 
   get _locale() {
     return this.appState.settings?.lang || 'en'
+  }
+
+  willUpdate() {
+    this.toggleAttribute('details', Boolean(this._graph && this._focus))
   }
 
   updated(changed) {
@@ -514,11 +522,13 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
           </button>
         </div>
       </div>
-      <grampsjs-family-details
-        .appState="${this.appState}"
-        .card="${ready ? cards.get(this._focus) : null}"
-        .relatives="${ready ? this._relatives(cards) : undefined}"
-      ></grampsjs-family-details>
+      ${ready
+        ? html`<grampsjs-family-details
+            .appState="${this.appState}"
+            .card="${cards.get(this._focus)}"
+            .relatives="${this._relatives(cards)}"
+          ></grampsjs-family-details>`
+        : ''}
     `
   }
 }
