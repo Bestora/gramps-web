@@ -203,9 +203,9 @@ export function isMenuHidden(appState, key) {
 
 const SHARE_KEY = 'grampsjs_share_key'
 
-// ponytail: a share link carries the shared password of the family accounts
-// (one account per surname) in the URL fragment, so it never reaches server
-// logs. Anyone holding the link can log in as any of these accounts.
+// ponytail: a share link carries the server's share key (GRAMPSWEB_SHARE_KEY)
+// in the URL fragment, so it never reaches server logs. Anyone holding the
+// link can log in as an Editor under any name.
 export function getShareKey() {
   const match = window.location.hash.match(/share=([^&]+)/)
   if (match) {
@@ -228,8 +228,8 @@ export function getShareKey() {
   }
 }
 
-export function makeShareLink(password) {
-  return `${window.location.origin}/login#share=${encodeURIComponent(password)}`
+export function makeShareLink(key) {
+  return `${window.location.origin}/login#share=${encodeURIComponent(key)}`
 }
 
 export function getTreeConfig() {
@@ -700,14 +700,23 @@ export async function apiRegisterUser(
 }
 
 export async function apiGetTokens(username, password) {
+  return fetchTokenPair('/api/token/', {username, password})
+}
+
+// share-link login: creates an Editor account for `name` on first use
+export async function apiGetShareTokens(key, name) {
+  return fetchTokenPair('/api/token/share/', {key, name})
+}
+
+async function fetchTokenPair(path, body) {
   try {
-    const resp = await fetch(`${__APIHOST__}/api/token/`, {
+    const resp = await fetch(`${__APIHOST__}${path}`, {
       method: 'POST',
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({username, password}),
+      body: JSON.stringify(body),
     })
     if (resp.status === 401 || resp.status === 403) {
       throw new Error('Wrong username or password')

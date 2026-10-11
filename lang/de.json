@@ -458,12 +458,14 @@
     "Invalid region coordinates": "Ungültige Bereichskoordinaten",
     "Toggle region outlines": "Regionskonturen ein-/ausblenden",
     "Welcome!": "Willkommen!",
-    "Please enter your surname to continue.": "Bitte gib deinen Nachnamen ein.",
     "Continue": "Weiter",
     "Log in with username and password": "Mit Benutzername und Passwort anmelden",
-    "Unknown surname. Please check the spelling.": "Nachname unbekannt. Bitte Schreibweise prüfen.",
     "Share link": "Share-Link",
-    "Enter the password shared by the family accounts. Each account is named after a lower-cased surname. Whoever has the link only needs to enter their surname.": "Gib das gemeinsame Passwort der Familien-Accounts ein. Jeder Account heißt wie ein Nachname in Kleinbuchstaben (z. B. „müller“). Wer den Link hat, muss nur noch seinen Nachnamen eingeben.",
     "Copy link": "Link kopieren",
-    "Link copied": "Link kopiert"
+    "Link copied": "Link kopiert",
+    "Please enter your full name to continue.": "Bitte gib deinen vollen Namen ein.",
+    "Full name": "Vollständiger Name",
+    "This link is no longer valid.": "Dieser Link ist nicht mehr gültig.",
+    "Share key": "Share-Key",
+    "Enter the share key configured on the server (GRAMPSWEB_SHARE_KEY). Whoever has the link only enters their full name and gets an Editor account.": "Gib den auf dem Server konfigurierten Share-Key ein (GRAMPSWEB_SHARE_KEY). Wer den Link hat, gibt nur noch seinen vollen Namen ein und bekommt einen Editor-Account."
 }

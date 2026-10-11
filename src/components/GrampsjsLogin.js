@@ -12,6 +12,7 @@ import './GrampsjsOidcButton.js'
 import {sharedStyles} from '../SharedStyles.js'
 import {
   apiGetTokens,
+  apiGetShareTokens,
   apiResetPassword,
   apiGetOIDCConfig,
   apiOIDCLogin,
@@ -347,17 +348,17 @@ class GrampsjsLogin extends GrampsjsAppStateMixin(LitElement) {
           @keydown="${this._handleFormKeydown}"
         >
           <h2>${this._('Welcome!')}</h2>
-          <p>${this._('Please enter your surname to continue.')}</p>
+          <p>${this._('Please enter your full name to continue.')}</p>
           <div class="text-field-wrapper">
             <input
-              id="surname"
-              name="surname"
+              id="fullname"
+              name="fullname"
               type="text"
-              autocomplete="family-name"
+              autocomplete="name"
               placeholder=" "
               required
             />
-            <label for="surname">${this._('Surname')}</label>
+            <label for="fullname">${this._('Full name')}</label>
           </div>
           <div class="button-container">
             <md-filled-button type="submit">
@@ -389,22 +390,18 @@ class GrampsjsLogin extends GrampsjsAppStateMixin(LitElement) {
   async _submitShareLogin(e) {
     e?.preventDefault()
     e?.stopPropagation()
-    // accounts are named after the lower-cased surname, e.g. "müller"
-    const username = this.shadowRoot
-      .getElementById('surname')
-      ?.value.trim()
-      .toLowerCase()
-    if (!username) {
+    const name = this.shadowRoot.getElementById('fullname')?.value.trim()
+    if (!name) {
       return
     }
     const submitProgress = this.shadowRoot.getElementById('login-progress')
     submitProgress.style.display = 'block'
     submitProgress.closed = false
-    const res = await apiGetTokens(username, this.shareKey)
+    const res = await apiGetShareTokens(this.shareKey, name)
     if ('error' in res) {
       submitProgress.style.display = 'none'
       submitProgress.closed = true
-      this._showError(this._('Unknown surname. Please check the spelling.'))
+      this._showError(this._('This link is no longer valid.'))
     } else {
       document.location.href = '/'
     }

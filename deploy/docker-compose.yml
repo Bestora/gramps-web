@@ -1,0 +1,76 @@
+# Full Gramps Web stack for ancestor.u0x.de, built from both forks.
+# Expected layout on the server:
+#   /opt/ancestor/gramps-web      (this repo)
+#   /opt/ancestor/gramps-web-api
+# Run from /opt/ancestor/gramps-web/deploy:  docker compose up -d --build
+# The host's Caddy terminates TLS and proxies to 127.0.0.1:8017.
+
+x-api: &api
+  build:
+    context: ../../gramps-web-api
+  image: ancestor-api:latest
+  restart: unless-stopped
+  env_file: .env
+  environment:
+    GRAMPSWEB_TREE: ${GRAMPSWEB_TREE:-Gramps Web}
+    GRAMPSWEB_BASE_URL: https://ancestor.u0x.de
+    GRAMPSWEB_CELERY_CONFIG__broker_url: redis://redis:6379/0
+    GRAMPSWEB_CELERY_CONFIG__result_backend: redis://redis:6379/0
+    GRAMPSWEB_RATELIMIT_STORAGE_URI: redis://redis:6379/1
+  volumes:
+    - users:/app/users
+    - index:/app/indexdir
+    - thumb_cache:/app/thumbnail_cache
+    - cache:/app/cache
+    - secret:/app/secret
+    - db:/root/.gramps/grampsdb
+    - media:/app/media
+    - tmp:/tmp
+  depends_on:
+    - redis
+
+services:
+  web:
+    build:
+      context: ..
+      dockerfile_inline: |
+        FROM node:22 AS build
+        WORKDIR /src
+        COPY package*.json ./
+        RUN npm ci --ignore-scripts
+        COPY . .
+        RUN npm run build
+
+        FROM nginx:1.27-alpine
+        COPY --from=build /src/dist /usr/share/nginx/html
+        COPY default.conf.template /etc/nginx/templates/
+    image: ancestor-web:latest
+    restart: unless-stopped
+    environment:
+      NAME_SERVER: 127.0.0.11 # Docker's internal DNS
+      API_HOST: http://api:5000
+    ports:
+      - '127.0.0.1:8017:80'
+    depends_on:
+      - api
+
+  api:
+    <<: *api
+
+  celery:
+    <<: *api
+    command: celery -A gramps_webapi.celery worker --loglevel=INFO --concurrency=2
+
+  redis:
+    image: redis:7.2.4-alpine
+    restart: unless-stopped
+
+volumes:
+  users:
+  index:
+  thumb_cache:
+  cache:
+  secret:
+  db:
+  media:
+  tmp:

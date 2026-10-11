@@ -23,3 +23,6 @@
 /_site/
 /dist/
 /out-tsc/
+
+# deploy secrets
+/deploy/.env

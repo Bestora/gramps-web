@@ -397,7 +397,7 @@ export class GrampsjsViewAdminSettings extends GrampsjsView {
         <h3>${this._('Share link')}</h3>
         <p>
           ${this._(
-            'Enter the password shared by the family accounts. Each account is named after a lower-cased surname. Whoever has the link only needs to enter their surname.'
+            'Enter the share key configured on the server (GRAMPSWEB_SHARE_KEY). Whoever has the link only enters their full name and gets an Editor account.'
           )}
         </p>
         <p>
@@ -405,7 +405,7 @@ export class GrampsjsViewAdminSettings extends GrampsjsView {
             class="settings-text-field"
             id="share-password-field"
             type="password"
-            label="${this._('Password')}"
+            label="${this._('Share key')}"
           ></md-filled-text-field>
         </p>
         <p>

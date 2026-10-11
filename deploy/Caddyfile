@@ -1,0 +1,5 @@
+# goes into the host's Caddyfile (e.g. /etc/caddy/Caddyfile)
+ancestor.u0x.de {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8017
+}

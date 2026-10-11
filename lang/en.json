@@ -450,12 +450,14 @@
   "Problems found in this file": "Problems found in this file",
   "Insert image": "Insert image",
   "Welcome!": "Welcome!",
-  "Please enter your surname to continue.": "Please enter your surname to continue.",
   "Continue": "Continue",
   "Log in with username and password": "Log in with username and password",
-  "Unknown surname. Please check the spelling.": "Unknown surname. Please check the spelling.",
   "Share link": "Share link",
-  "Enter the password shared by the family accounts. Each account is named after a lower-cased surname. Whoever has the link only needs to enter their surname.": "Enter the password shared by the family accounts. Each account is named after a lower-cased surname. Whoever has the link only needs to enter their surname.",
   "Copy link": "Copy link",
-  "Link copied": "Link copied"
+  "Link copied": "Link copied",
+  "Please enter your full name to continue.": "Please enter your full name to continue.",
+  "Full name": "Full name",
+  "This link is no longer valid.": "This link is no longer valid.",
+  "Share key": "Share key",
+  "Enter the share key configured on the server (GRAMPSWEB_SHARE_KEY). Whoever has the link only enters their full name and gets an Editor account.": "Enter the share key configured on the server (GRAMPSWEB_SHARE_KEY). Whoever has the link only enters their full name and gets an Editor account."
 }
