@@ -5,6 +5,7 @@ import {GrampsjsAppStateMixin} from '../mixins/GrampsjsAppStateMixin.js'
 import {familyStyles} from './familyStyles.js'
 import {fireEvent} from '../util.js'
 import {DRAG_THRESHOLD, isTap} from './loader.js'
+import {pathPoints} from './path.js'
 
 // low enough to see a whole large tree at once
 const MIN_SCALE = 0.05
@@ -81,6 +82,10 @@ class GrampsjsFamilyCanvas extends GrampsjsAppStateMixin(LitElement) {
         }
         .card.focus.me {
           box-shadow: 0 0 0 3px var(--fm-moss), 0 0 0 9px rgba(30, 43, 36, 0.12);
+        }
+        .card.onpath:not(.focus) {
+          border-color: var(--fm-add);
+          border-width: 2px;
         }
         .card.unknown {
           border-style: dashed;
@@ -167,6 +172,7 @@ class GrampsjsFamilyCanvas extends GrampsjsAppStateMixin(LitElement) {
       cards: {type: Object},
       selected: {type: String},
       marked: {type: String},
+      path: {type: Array},
       tapEvent: {type: String},
       dragging: {type: Boolean, reflect: true},
       _tx: {state: true},
@@ -182,6 +188,7 @@ class GrampsjsFamilyCanvas extends GrampsjsAppStateMixin(LitElement) {
     this.cards = new Map()
     this.selected = ''
     this.marked = ''
+    this.path = []
     this.tapEvent = 'family:select'
     this.dragging = false
     this._tx = 0
@@ -348,7 +355,7 @@ class GrampsjsFamilyCanvas extends GrampsjsAppStateMixin(LitElement) {
     return html`<button
       class="card ${kind} ${node.handle && node.handle === this.marked
         ? 'me'
-        : ''}"
+        : ''} ${node.handle && this.path.includes(node.handle) ? 'onpath' : ''}"
       style="left:${node.x}px;top:${node.y}px;width:${node.w}px;height:${node.h}px"
       title="${name ?? ''}"
       ?disabled="${node.kind === 'unknown'}"
@@ -365,6 +372,17 @@ class GrampsjsFamilyCanvas extends GrampsjsAppStateMixin(LitElement) {
     </button>`
   }
 
+  // The guide line from "you" to the selected person, under the cards
+  _renderGuide() {
+    const points = pathPoints(this.layout, this.path)
+    if (!points.length) return ''
+    return svg`<polyline class="guide"
+      points="${points.map(p => p.join(',')).join(' ')}"
+      fill="none" stroke="var(--fm-add)" stroke-width="5"
+      stroke-linecap="round" stroke-linejoin="round"
+      stroke-dasharray="1 10"></polyline>`
+  }
+
   render() {
     const {nodes, edges, width, height} = this.layout
     return html`<div
@@ -379,6 +397,7 @@ class GrampsjsFamilyCanvas extends GrampsjsAppStateMixin(LitElement) {
             fill="none" stroke="var(--fm-line)" stroke-width="2"
             stroke-linejoin="round"></polyline>`
         )}
+        ${this._renderGuide()}
       </svg>
       ${nodes.map(node => this._renderCard(node))}
     </div>`

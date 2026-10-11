@@ -84,6 +84,47 @@ class GrampsjsFamilyDetails extends GrampsjsAppStateMixin(LitElement) {
         .kin small {
           color: var(--fm-muted);
         }
+        .way {
+          list-style: none;
+          margin: 8px 0 0;
+          padding: 0;
+          font-size: 15px;
+        }
+        .way li {
+          position: relative;
+          padding: 3px 0 3px 20px;
+        }
+        .way li::before {
+          content: '';
+          position: absolute;
+          left: 5px;
+          top: 11px;
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: var(--fm-add);
+        }
+        .way li:not(:last-child)::after {
+          content: '';
+          position: absolute;
+          left: 8px;
+          top: 19px;
+          bottom: -5px;
+          border-left: 2px dotted var(--fm-add);
+        }
+        .way button {
+          border: none;
+          background: none;
+          padding: 0;
+          font: inherit;
+          color: var(--fm-ink);
+          text-decoration: underline;
+          text-decoration-color: var(--fm-line);
+          cursor: pointer;
+        }
+        .way small {
+          color: var(--fm-muted);
+        }
         .actions {
           display: grid;
           gap: 8px;
@@ -159,6 +200,8 @@ class GrampsjsFamilyDetails extends GrampsjsAppStateMixin(LitElement) {
       canAdd: {type: Boolean},
       canEdit: {type: Boolean},
       familyLink: {type: Boolean},
+      steps: {type: Array},
+      inLaw: {type: String},
     }
   }
 
@@ -172,6 +215,58 @@ class GrampsjsFamilyDetails extends GrampsjsAppStateMixin(LitElement) {
     this.canAdd = false
     this.canEdit = false
     this.familyLink = false
+    this.steps = []
+    this.inLaw = ''
+  }
+
+  // Gramps names blood relatives; relatives by marriage are named from the way
+  _relation() {
+    if (this.kinship?.relation) return this.kinship.relation
+    const inLaw = {
+      'father-in-law': this._('Father-in-law'),
+      'mother-in-law': this._('Mother-in-law'),
+      'son-in-law': this._('Son-in-law'),
+      'daughter-in-law': this._('Daughter-in-law'),
+      'brother-in-law': this._('Brother-in-law'),
+      'sister-in-law': this._('Sister-in-law'),
+      stepfather: this._('Stepfather'),
+      stepmother: this._('Stepmother'),
+      stepson: this._('Stepson'),
+      stepdaughter: this._('Stepdaughter'),
+      husband: this._('Husband'),
+      wife: this._('Wife'),
+    }
+    return inLaw[this.inLaw] ?? ''
+  }
+
+  // "You -> Mother Evelyn -> Father Pedro", each person can be opened
+  _renderWay() {
+    const roles = {
+      mother: this._('Mother'),
+      father: this._('Father'),
+      parent: this._('Parent'),
+      daughter: this._('Daughter'),
+      son: this._('Son'),
+      child: this._('Child'),
+      wife: this._('Wife'),
+      husband: this._('Husband'),
+      partner: this._('Partner'),
+    }
+    return html`<ol class="way" aria-label="${this._('How you are related')}">
+      ${this.steps.map((step, i) =>
+        i === 0
+          ? html`<li>${this._('You')}</li>`
+          : html`<li>
+              <small>${roles[step.role]}</small>
+              <button
+                @click="${() =>
+                  fireEvent(this, 'family:goto', {handle: step.handle})}"
+              >
+                ${step.name}
+              </button>
+            </li>`
+      )}
+    </ol>`
   }
 
   _action(action) {
@@ -213,10 +308,13 @@ class GrampsjsFamilyDetails extends GrampsjsAppStateMixin(LitElement) {
       <div class="years">${this.card.years}</div>
       ${this.isMe
         ? html`<div class="kin"><strong>${this._('This is you')}</strong></div>`
-        : this.kinship?.relation
+        : this._relation() || this.steps.length > 1
         ? html`<div class="kin">
-            <strong>${this.kinship.relation}</strong>
-            ${this.kinship.ancestors.length
+            ${this._relation()
+              ? html`<strong>${this._relation()}</strong>`
+              : ''}
+            ${this.steps.length > 1 ? this._renderWay() : ''}
+            ${this.kinship?.ancestors.length
               ? html`<small
                   >${this._(
                     'Common ancestors: %s',

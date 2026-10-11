@@ -24,6 +24,7 @@ import {
   fetchFullTreeGraph,
 } from './familyApi.js'
 import {layoutFullTree} from './fullTree.js'
+import {findPath, stepRole, inLawRelation} from './path.js'
 import {kinship as buildKinship} from './kinship.js'
 import {myPersonHandle, onboardingDone} from './me.js'
 import {canSwitchUiMode, setUiModeOverride, UI_MODE_FULL} from './uiMode.js'
@@ -288,6 +289,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
       _treeState: {state: true},
       _marked: {state: true},
       _detailsClosed: {state: true},
+      _pathGraph: {state: true},
     }
   }
 
@@ -308,12 +310,19 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     this._onDbChanged = () => {
       this._loader.reload()
       if (this._tree) this._loadTree()
+      if (this._pathGraph) {
+        this._pathGraph = null
+        this._loadPathGraph()
+      }
     }
     this._view = readView()
     this._tree = null
     this._treeState = ''
     this._marked = ''
     this._detailsClosed = false
+    this._pathGraph = null
+    this._pathLoading = false
+    this._pathMemo = {}
     this._treeCardsFor = null
     this._treeCardMap = new Map()
     this._loader = new NeighborhoodLoader(
@@ -444,6 +453,52 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     return this._treeCardMap
   }
 
+  // The guide line needs everyone, not just the neighbourhood: the whole
+  // tree's graph if it is loaded, otherwise all people without a layout
+  async _loadPathGraph() {
+    if (this._pathLoading || this._pathGraph || !this._me) return
+    this._pathLoading = true
+    const res = await fetchFullTreeGraph(this.appState.apiGet, this._locale)
+    this._pathLoading = false
+    if (!('error' in res)) this._pathGraph = res.graph
+  }
+
+  get _graphForPath() {
+    return this._tree?.graph ?? this._pathGraph ?? this._selectedGraph
+  }
+
+  // [{handle, via, role, name}] from "you" to the selected person
+  _pathSteps() {
+    const graph = this._graphForPath
+    const me = this._me
+    const to = this._selected
+    if (!graph || !me || !to || me === to) return []
+    const memo = this._pathMemo
+    if (memo.graph !== graph || memo.me !== me || memo.to !== to) {
+      const steps = findPath(graph, me, to).map(step => {
+        const person = graph.person(step.handle)
+        return {
+          ...step,
+          role: step.via ? stepRole(step.via, person?.gender) : '',
+          gender: person?.gender,
+          name: personCard(person).name,
+        }
+      })
+      this._pathMemo = {graph, me, to, steps}
+    }
+    return this._pathMemo.steps
+  }
+
+  _goTo(handle) {
+    if (this._inTree) {
+      this._marked = handle
+      this._canvas()?.centerOn(handle)
+      return
+    }
+    const person = this._graphForPath?.person(handle)
+    if (person) fireEvent(this, 'nav', {path: `person/${person.gramps_id}`})
+  }
+
   get _me() {
     return myPersonHandle(this.appState.treeConfig, this.appState.user?.name)
   }
@@ -487,6 +542,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     ) {
       this._loadForPath()
     }
+    this._loadPathGraph()
     const username = now.user?.name
     if (username && !this._dialog && !this._me && !onboardingDone(username)) {
       this._onboardingForce = false
@@ -739,6 +795,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     }
     const selected = this._selected
     const graph = this._selectedGraph
+    const steps = this._pathSteps()
     const hasDetails = Boolean(
       graph && selected && cards.get(selected) && !this._detailsClosed
     )
@@ -750,6 +807,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
           .cards="${cards}"
           .selected="${selected}"
           .marked="${this._me}"
+          .path="${steps.map(step => step.handle)}"
           .tapEvent="${this._inTree ? 'family:mark' : 'family:select'}"
           @family:select="${this._select}"
           @family:mark="${e => {
@@ -854,6 +912,9 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
             ?canAdd="${this._canLink}"
             ?canEdit="${this.appState.permissions?.canEdit}"
             ?familyLink="${this._inTree}"
+            .steps="${steps}"
+            .inLaw="${inLawRelation(steps)}"
+            @family:goto="${e => this._goTo(e.detail.handle)}"
             @family:action="${this._onAction}"
             @family:show-family="${this._showInFamily}"
             @family:close-details="${() => {
