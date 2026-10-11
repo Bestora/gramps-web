@@ -39,6 +39,7 @@ import './GrampsjsFamilyOnboarding.js'
 const ORIENTATION_KEY = 'grampsjs_family_orientation'
 const EMPTY_LAYOUT = {nodes: [], edges: [], width: 0, height: 0}
 const VIEW_KEY = 'grampsjs_family_view'
+const NO_PATH = []
 
 function readView() {
   try {
@@ -184,9 +185,6 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
           font-weight: 700;
           font-size: 14px;
         }
-        .seg[hidden] {
-          display: none;
-        }
         .empty .retry {
           pointer-events: auto;
           margin-top: 8px;
@@ -290,7 +288,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
       _treeState: {state: true},
       _marked: {state: true},
       _detailsClosed: {state: true},
-      _pathGraph: {state: true},
+      _all: {state: true},
     }
   }
 
@@ -310,19 +308,23 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     this._onboardingForce = false
     this._onDbChanged = () => {
       this._loader.reload()
-      if (this._tree) this._loadTree()
-      if (this._pathGraph) {
-        this._pathGraph = null
-        this._loadPathGraph()
-      }
+      // one fetch for everyone; the tree is only laid out again when shown
+      this._treeStale = true
+      if (!this._allRequest) return
+      this._loadAll(true).then(() => {
+        if (this._inTree) this._loadTree()
+      })
     }
     this._view = readView()
     this._tree = null
     this._treeState = ''
     this._marked = ''
     this._detailsClosed = false
-    this._pathGraph = null
-    this._pathLoading = false
+    this._all = null
+    this._allRequest = null
+    this._treeStale = false
+    this._treeRequest = 0
+    this._kinFor = undefined
     this._pathMemo = {}
     this._treeCardsFor = null
     this._treeCardMap = new Map()
@@ -338,7 +340,6 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
         if (state.error) {
           fireEvent(this, 'grampsjs:error', {message: state.error})
         }
-        this._loadKinship()
       }
     )
     this._layoutCache = new LayoutCache((graph, focus, orientation) =>
@@ -362,7 +363,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
       attributeFilter: ['data-theme'],
     })
     window.addEventListener('db:changed', this._onDbChanged)
-    if (this._inTree) this._loadTree()
+    if (this._inTree && !this._tree) this._loadTree()
   }
 
   disconnectedCallback() {
@@ -391,29 +392,53 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     return this._inTree ? this._tree?.graph : this._graph
   }
 
+  // Everyone in the tree, for the guide line and the whole tree. Loaded once;
+  // `fresh` loads it again after a change.
+  _loadAll(fresh = false) {
+    if (!this._allRequest || fresh) {
+      const request = fetchFullTreeGraph(this.appState.apiGet, this._locale)
+      this._allRequest = request
+      request.then(res => {
+        if (this._allRequest === request && !('error' in res)) {
+          this._all = res.graph
+        }
+      })
+    }
+    return this._allRequest
+  }
+
   async _loadTree() {
-    this._treeState = 'loading'
-    const res = await fetchFullTreeGraph(this.appState.apiGet, this._locale)
+    this._treeRequest += 1
+    const request = this._treeRequest
+    if (!this._tree) this._treeState = 'loading'
+    const res = await this._loadAll(this._treeStale)
+    if (request !== this._treeRequest) return
     if ('error' in res) {
-      this._treeState = 'error'
+      // a usable older tree stays; only an empty one shows the error
+      if (!this._tree) this._treeState = 'error'
       return
     }
-    const root = this._me || this._focus || res.graph.people()[0]?.handle || ''
+    const all = res.graph
+    const root = this._me || this._focus || all.people()[0]?.handle || ''
     // only the people connected to "you": unrelated trees in the same
     // database are left out
-    const connected = connectedPeople(res.graph, root)
+    const connected = connectedPeople(all, root)
     const graph = new FamilyGraph(
-      res.graph.people().filter(p => connected.has(p.handle))
+      all.people().filter(p => connected.has(p.handle))
     )
     try {
       const orientation = this._orientation
       const layout = root
         ? await layoutFullTree(graph, root, orientation)
         : EMPTY_LAYOUT
+      if (request !== this._treeRequest) return
       this._tree = {graph, root, layout, orientation}
+      this._treeStale = false
       this._treeState = ''
+      // the direction may have been switched while this was laid out
+      this._relayoutTree()
     } catch (e) {
-      this._treeState = 'error'
+      if (!this._tree) this._treeState = 'error'
     }
   }
 
@@ -423,9 +448,12 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     const orientation = this._orientation
     try {
       const layout = await layoutFullTree(tree.graph, tree.root, orientation)
-      if (this._tree === tree) this._tree = {...tree, layout, orientation}
+      if (this._tree !== tree) return
+      this._tree = {...tree, layout, orientation}
+      // switched again while this was laid out
+      if (orientation !== this._orientation) this._relayoutTree()
     } catch (e) {
-      this._treeState = 'error'
+      if (!this._tree) this._treeState = 'error'
     }
   }
 
@@ -436,8 +464,9 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     } catch (e) {
       // ignore
     }
-    if (view === 'tree' && !this._tree) this._loadTree()
-    else if (view === 'tree') this._relayoutTree()
+    if (view !== 'tree') return
+    if (!this._tree || this._treeStale) this._loadTree()
+    else this._relayoutTree()
   }
 
   _showInFamily() {
@@ -460,18 +489,9 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     return this._treeCardMap
   }
 
-  // The guide line needs everyone, not just the neighbourhood: the whole
-  // tree's graph if it is loaded, otherwise all people without a layout
-  async _loadPathGraph() {
-    if (this._pathLoading || this._pathGraph || !this._me) return
-    this._pathLoading = true
-    const res = await fetchFullTreeGraph(this.appState.apiGet, this._locale)
-    this._pathLoading = false
-    if (!('error' in res)) this._pathGraph = res.graph
-  }
-
+  // The guide line needs everyone, not just the neighbourhood
   get _graphForPath() {
-    return this._tree?.graph ?? this._pathGraph ?? this._selectedGraph
+    return this._all ?? this._selectedGraph
   }
 
   // [{handle, via, role, name}] from "you" to the selected person
@@ -491,12 +511,24 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
           name: personCard(person).name,
         }
       })
-      this._pathMemo = {graph, me, to, steps}
+      this._pathMemo = {
+        graph,
+        me,
+        to,
+        steps,
+        handles: steps.map(step => step.handle),
+      }
     }
     return this._pathMemo.steps
   }
 
+  // the same array while the path is the same, so the canvas does not redraw
+  _pathHandles() {
+    return this._pathSteps().length ? this._pathMemo.handles : NO_PATH
+  }
+
   _goTo(handle) {
+    this._detailsClosed = false
     if (this._inTree) {
       this._marked = handle
       this._canvas()?.centerOn(handle)
@@ -517,23 +549,22 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     )
   }
 
-  willUpdate() {
-    this.toggleAttribute(
-      'details',
-      Boolean(this._selectedGraph && this._selected && !this._detailsClosed)
-    )
+  willUpdate(changed) {
+    if (changed.has('_view')) this._detailsClosed = false
+    this.toggleAttribute('details', this._hasDetails)
+  }
+
+  get _hasDetails() {
+    const selected = this._selected
+    const graph = this._selectedGraph
+    return Boolean(graph?.person(selected) && selected && !this._detailsClosed)
   }
 
   updated(changed) {
-    if (
-      changed.has('_marked') ||
-      changed.has('_view') ||
-      changed.has('_tree')
-    ) {
+    // kinship only when the shown person changes, not on every reload
+    if (this._selected !== this._kinFor) {
+      this._kinFor = this._selected
       this._loadKinship()
-    }
-    if (changed.has('_marked') || changed.has('_view')) {
-      this._detailsClosed = false
     }
     if (!changed.has('appState')) return
     const prev = changed.get('appState')
@@ -549,7 +580,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     ) {
       this._loadForPath()
     }
-    this._loadPathGraph()
+    if (this._me) this._loadAll()
     const username = now.user?.name
     if (username && !this._dialog && !this._me && !onboardingDone(username)) {
       this._onboardingForce = false
@@ -625,6 +656,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
   }
 
   _select(e) {
+    this._detailsClosed = false
     const person = this._graph?.person(e.detail.handle)
     if (person && person.handle !== this._focus) {
       fireEvent(this, 'nav', {path: `person/${person.gramps_id}`})
@@ -632,6 +664,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
   }
 
   _toMe() {
+    this._detailsClosed = false
     if (this._inTree) {
       this._marked = ''
       this._canvas()?.centerOn(this._me)
@@ -683,12 +716,16 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     fireEvent(window, 'uimode:changed')
   }
 
+  // the same Map while the graph is the same, so the canvas does not redraw
   _cards() {
-    const cards = new Map()
-    for (const person of this._graph?.people() ?? []) {
-      cards.set(person.handle, personCard(person))
+    if (this._cardsFor !== this._graph) {
+      this._cardsFor = this._graph
+      this._cardMap = new Map()
+      for (const person of this._graph?.people() ?? []) {
+        this._cardMap.set(person.handle, personCard(person))
+      }
     }
-    return cards
+    return this._cardMap
   }
 
   _relatives(cards) {
@@ -805,9 +842,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     const selected = this._selected
     const graph = this._selectedGraph
     const steps = this._pathSteps()
-    const hasDetails = Boolean(
-      graph && selected && cards.get(selected) && !this._detailsClosed
-    )
+    const hasDetails = this._hasDetails && cards.has(selected)
     return html`
       <div class="main">
         <grampsjs-family-canvas
@@ -816,11 +851,12 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
           .cards="${cards}"
           .selected="${selected}"
           .marked="${this._me}"
-          .path="${steps.map(step => step.handle)}"
+          .path="${this._pathHandles()}"
           .tapEvent="${this._inTree ? 'family:mark' : 'family:select'}"
           @family:select="${this._select}"
           @family:mark="${e => {
             this._marked = e.detail.handle
+            this._detailsClosed = false
           }}"
           @family:add="${e => this._openAdd(e.detail.relation)}"
         ></grampsjs-family-canvas>

@@ -1052,6 +1052,7 @@ export const grampsStrings = [
   'white',
   'Warning',
   'Warnings',
+  'Husband',
   'Wife',
   'Will show the parents, brother and sisters of the selected person.',
   'Will',

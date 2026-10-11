@@ -1,6 +1,7 @@
 // src/family/GrampsjsFamilyCanvas.js
 // Pannable, zoomable canvas showing a laid-out family neighbourhood.
 import {html, css, svg, LitElement} from 'lit'
+import {guard} from 'lit/directives/guard.js'
 import {GrampsjsAppStateMixin} from '../mixins/GrampsjsAppStateMixin.js'
 import {familyStyles} from './familyStyles.js'
 import {fireEvent} from '../util.js'
@@ -347,6 +348,8 @@ class GrampsjsFamilyCanvas extends GrampsjsAppStateMixin(LitElement) {
         ? html`<img
             src="${card.imageUrl}"
             alt=""
+            loading="lazy"
+            decoding="async"
             @error="${e => e.target.remove()}"
           />`
         : ''}</span
@@ -355,7 +358,7 @@ class GrampsjsFamilyCanvas extends GrampsjsAppStateMixin(LitElement) {
     return html`<button
       class="card ${kind} ${node.handle && node.handle === this.marked
         ? 'me'
-        : ''} ${node.handle && this.path.includes(node.handle) ? 'onpath' : ''}"
+        : ''} ${node.handle && this._onPath.has(node.handle) ? 'onpath' : ''}"
       style="left:${node.x}px;top:${node.y}px;width:${node.w}px;height:${node.h}px"
       title="${name ?? ''}"
       ?disabled="${node.kind === 'unknown'}"
@@ -390,16 +393,34 @@ class GrampsjsFamilyCanvas extends GrampsjsAppStateMixin(LitElement) {
       style="width:${width}px;height:${height}px;transform:translate(${this
         ._tx}px, ${this._ty}px) scale(${this._scale})"
     >
-      <svg width="${width}" height="${height}" aria-hidden="true">
-        ${edges.map(
-          e => svg`<polyline
-            points="${e.points.map(p => p.join(',')).join(' ')}"
-            fill="none" stroke="var(--fm-line)" stroke-width="2"
-            stroke-linejoin="round"></polyline>`
-        )}
-        ${this._renderGuide()}
-      </svg>
-      ${nodes.map(node => this._renderCard(node))}
+      ${guard(
+        [
+          this.layout,
+          this.cards,
+          this.selected,
+          this.marked,
+          this.path,
+          this.appState?.i18n?.strings,
+        ],
+        () => {
+          // panning only moves the stage; the cards stay as they are
+          this._onPath = new Set(this.path)
+          return html`<svg
+              width="${width}"
+              height="${height}"
+              aria-hidden="true"
+            >
+              ${edges.map(
+                e => svg`<polyline
+                  points="${e.points.map(p => p.join(',')).join(' ')}"
+                  fill="none" stroke="var(--fm-line)" stroke-width="2"
+                  stroke-linejoin="round"></polyline>`
+              )}
+              ${this._renderGuide()}
+            </svg>
+            ${nodes.map(node => this._renderCard(node))}`
+        }
+      )}
     </div>`
   }
 }
