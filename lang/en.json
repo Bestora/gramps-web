@@ -540,5 +540,8 @@
   "Family mode": "Family mode",
   "Full view": "Full view",
   "Remove link": "Remove link",
-  "Link this person": "Link this person"
+  "Link this person": "Link this person",
+  "Can be changed in the full view": "Can be changed in the full view",
+  "The chosen family no longer exists.": "The chosen family no longer exists.",
+  "Someone else has just changed this. Please try again.": "Someone else has just changed this. Please try again."
 }

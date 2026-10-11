@@ -5,7 +5,13 @@ import {GrampsjsAppStateMixin} from '../mixins/GrampsjsAppStateMixin.js'
 import {familyStyles} from './familyStyles.js'
 import {fireEvent} from '../util.js'
 import {buildNewPerson, GENDER} from './personPayload.js'
-import {RELATION, canAddParent, linkRelative} from './relatives.js'
+import {
+  RELATION,
+  canAddParent,
+  checkRelative,
+  fetchFocus,
+  linkRelative,
+} from './relatives.js'
 import {ensurePlaces, fireUndo} from './saveHelpers.js'
 import {personCard} from './personCard.js'
 import {emptyValues} from './GrampsjsFamilyPersonForm.js'
@@ -66,6 +72,8 @@ class GrampsjsFamilyAddPerson extends GrampsjsAppStateMixin(LitElement) {
       _relation: {state: true},
       _saving: {state: true},
       _formValues: {state: true},
+      _partnerList: {state: true},
+      _genders: {state: true},
     }
   }
 
@@ -85,9 +93,16 @@ class GrampsjsFamilyAddPerson extends GrampsjsAppStateMixin(LitElement) {
       this._relation = this.preset || ''
       this._saving = false
     }
-    if (changed.has('_relation') || changed.has('open')) {
-      // a new object would reset what the user typed on every render
+    if (
+      changed.has('_relation') ||
+      changed.has('open') ||
+      changed.has('focusPerson')
+    ) {
+      // new objects on every render would reset what the user typed or chose
       this._formValues = this._initialValues()
+      this._partnerList =
+        this._relation === RELATION.CHILD ? this._partners() : []
+      this._genders = this._genderChoice()
     }
   }
 
@@ -144,13 +159,23 @@ class GrampsjsFamilyAddPerson extends GrampsjsAppStateMixin(LitElement) {
   async _save(e) {
     const {values} = e.detail
     this._saving = true
+    // a taken parent slot or a vanished family must stop us before anyone
+    // is created
+    const fresh = await fetchFocus(this.appState, this.focusPerson.handle)
+    if ('error' in fresh) return this._fail(fresh.error)
+    const problem = checkRelative(fresh.person, {
+      relation: this._relation,
+      gender: values.gender,
+      familyHandle: values.familyHandle ?? '',
+    })
+    if (problem) return this._fail(this._(problem))
     const places = await ensurePlaces(this.appState, values)
     if ('error' in places) return this._fail(places.error)
     const objects = buildNewPerson({...places.values, gender: values.gender})
     const created = await this.appState.apiPost('/api/objects/', objects, {
       dbChanged: false,
     })
-    if ('error' in created) return this._fail(created.error)
+    if ('error' in created) return this._fail(created.error, places.transaction)
     await this._link(objects[0].handle, values, [
       ...places.transaction,
       ...(created.data ?? []),
@@ -160,10 +185,12 @@ class GrampsjsFamilyAddPerson extends GrampsjsAppStateMixin(LitElement) {
 
   async _linkExisting(e) {
     this._saving = true
-    const person = this.graph?.person(e.detail.handle)
     await this._link(
       e.detail.handle,
-      {gender: person?.gender ?? GENDER.UNKNOWN},
+      {
+        gender: e.detail.gender ?? GENDER.UNKNOWN,
+        familyHandle: e.detail.familyHandle ?? '',
+      },
       []
     )
   }
@@ -171,17 +198,12 @@ class GrampsjsFamilyAddPerson extends GrampsjsAppStateMixin(LitElement) {
   async _link(handle, values, transaction) {
     const res = await linkRelative(this.appState, {
       relation: this._relation,
-      focusPerson: this.focusPerson,
+      focusHandle: this.focusPerson.handle,
       handle,
       gender: values.gender,
       familyHandle: values.familyHandle ?? '',
     })
-    if ('error' in res) {
-      // the new person exists even though linking failed
-      fireEvent(this, 'db:changed')
-      return this._fail(this._(res.error))
-    }
-    fireEvent(this, 'db:changed')
+    if ('error' in res) return this._fail(this._(res.error), transaction)
     fireUndo(
       this,
       this._('Person added'),
@@ -193,8 +215,19 @@ class GrampsjsFamilyAddPerson extends GrampsjsAppStateMixin(LitElement) {
     return undefined
   }
 
-  _fail(message) {
+  // Whatever was already saved stays; it is offered for undo with the error
+  _fail(message, transaction = []) {
     this._saving = false
+    if (transaction.length) {
+      fireEvent(this, 'db:changed')
+      fireUndo(
+        this,
+        message,
+        transaction,
+        `person/${this.focusPerson.gramps_id}`
+      )
+      return
+    }
     fireEvent(this, 'grampsjs:error', {message})
   }
 
@@ -254,10 +287,8 @@ class GrampsjsFamilyAddPerson extends GrampsjsAppStateMixin(LitElement) {
               .appState="${this.appState}"
               mode="add"
               .values="${this._formValues}"
-              .partners="${this._relation === RELATION.CHILD
-                ? this._partners()
-                : []}"
-              .genderChoice="${this._genderChoice()}"
+              .partners="${this._partnerList}"
+              .genderChoice="${this._genders}"
               .excludeHandle="${this.focusPerson?.handle ?? ''}"
               ?saving="${this._saving}"
               @family-form:submit="${this._save}"

@@ -293,7 +293,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     )
     this._layoutCache = new LayoutCache((graph, focus, orientation) =>
       layoutNeighborhood(buildNeighborhood(graph, focus), orientation, {
-        ghosts: Boolean(this.appState?.permissions?.canAdd),
+        ghosts: this._canLink,
       })
     )
     this._themeObserver = new MutationObserver(() => this._syncTheme())
@@ -318,6 +318,13 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     super.disconnectedCallback()
     this._themeObserver.disconnect()
     window.removeEventListener('db:changed', this._onDbChanged)
+  }
+
+  // adding relatives and photos also edits families and people, so it needs
+  // both permissions (Contributors may add but not edit)
+  get _canLink() {
+    const {canAdd, canEdit} = this.appState?.permissions ?? {}
+    return Boolean(canAdd && canEdit)
   }
 
   get _me() {
@@ -649,7 +656,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
             .relatives="${this._relatives(cards)}"
             .kinship="${this._kinship}"
             ?isMe="${Boolean(this._me) && this._focus === this._me}"
-            ?canAdd="${this.appState.permissions?.canAdd}"
+            ?canAdd="${this._canLink}"
             ?canEdit="${this.appState.permissions?.canEdit}"
             @family:action="${this._onAction}"
           ></grampsjs-family-details>`

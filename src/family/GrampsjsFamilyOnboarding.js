@@ -64,6 +64,7 @@ class GrampsjsFamilyOnboarding extends GrampsjsAppStateMixin(LitElement) {
     this._state = 'loading'
     this._candidates = []
     this._saving = false
+    this._createdHandle = ''
   }
 
   async updated(changed) {
@@ -101,6 +102,7 @@ class GrampsjsFamilyOnboarding extends GrampsjsAppStateMixin(LitElement) {
       fireEvent(this, 'grampsjs:error', {message: res.error})
       return
     }
+    this._createdHandle = ''
     setOnboardingDone(this.appState.user?.name)
     if (name) {
       fireEvent(this, 'grampsjs:notification', {
@@ -117,16 +119,20 @@ class GrampsjsFamilyOnboarding extends GrampsjsAppStateMixin(LitElement) {
 
   async _addMe(e) {
     this._saving = true
-    const places = await ensurePlaces(this.appState, e.detail.values)
-    if ('error' in places) return this._fail(places.error)
-    const objects = buildNewPerson({
-      ...places.values,
-      gender: e.detail.values.gender,
-    })
-    const res = await this.appState.apiPost('/api/objects/', objects)
-    if ('error' in res) return this._fail(res.error)
+    // a retry after a failed link must not create the person twice
+    if (!this._createdHandle) {
+      const places = await ensurePlaces(this.appState, e.detail.values)
+      if ('error' in places) return this._fail(places.error)
+      const objects = buildNewPerson({
+        ...places.values,
+        gender: e.detail.values.gender,
+      })
+      const res = await this.appState.apiPost('/api/objects/', objects)
+      if ('error' in res) return this._fail(res.error)
+      this._createdHandle = objects[0].handle
+    }
     this._saving = false
-    await this._choose(objects[0].handle, '')
+    await this._choose(this._createdHandle, '')
     return undefined
   }
 
