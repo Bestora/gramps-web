@@ -107,3 +107,40 @@ describe('searchPeopleUrl', () => {
     expect(url).toContain('pagesize=8')
   })
 })
+
+describe('fetchNeighborhoodGraph siblings', () => {
+  it('loads siblings, who are neither ancestors nor descendants', async () => {
+    const dan = {
+      handle: 'D',
+      gramps_id: 'I1',
+      extended: {
+        families: [],
+        primary_parent_family: {
+          handle: 'fP',
+          father_handle: 'H',
+          mother_handle: 'E',
+          child_ref_list: [{ref: 'D'}, {ref: 'K'}],
+        },
+      },
+    }
+    const calls = []
+    const apiGet = async url => {
+      calls.push(url)
+      if (url.includes('rules=')) {
+        return {
+          data: [
+            dan,
+            {handle: 'H', gramps_id: 'I2'},
+            {handle: 'E', gramps_id: 'I3'},
+          ],
+        }
+      }
+      return {
+        data: [{handle: 'K', gramps_id: 'I4', profile: {name_given: 'Kim'}}],
+      }
+    }
+    const res = await fetchNeighborhoodGraph(apiGet, 'I1', 'de')
+    expect(res.graph.person('K').profile.name_given).toBe('Kim')
+    expect(calls[1]).toContain('handles=K')
+  })
+})

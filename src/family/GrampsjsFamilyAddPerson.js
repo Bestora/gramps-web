@@ -72,7 +72,7 @@ class GrampsjsFamilyAddPerson extends GrampsjsAppStateMixin(LitElement) {
       _relation: {state: true},
       _saving: {state: true},
       _formValues: {state: true},
-      _partnerList: {state: true},
+      _familyChoice: {state: true},
       _genders: {state: true},
     }
   }
@@ -86,6 +86,7 @@ class GrampsjsFamilyAddPerson extends GrampsjsAppStateMixin(LitElement) {
     this._relation = ''
     this._saving = false
     this._formValues = null
+    this._familyChoice = {label: '', options: []}
   }
 
   willUpdate(changed) {
@@ -100,8 +101,7 @@ class GrampsjsFamilyAddPerson extends GrampsjsAppStateMixin(LitElement) {
     ) {
       // new objects on every render would reset what the user typed or chose
       this._formValues = this._initialValues()
-      this._partnerList =
-        this._relation === RELATION.CHILD ? this._partners() : []
+      this._familyChoice = this._familyOptions()
       this._genders = this._genderChoice()
     }
   }
@@ -129,6 +129,53 @@ class GrampsjsFamilyAddPerson extends GrampsjsAppStateMixin(LitElement) {
       })
   }
 
+  // Which family the new person goes into, if there is a choice: for a
+  // child, the marriage; for a partner, whether they are the other parent
+  // of children the person already has without a partner
+  _familyOptions() {
+    const focus = this.focusPerson?.handle
+    if (this._relation === RELATION.CHILD) {
+      const partners = this._partners()
+      const options = partners.map(p => ({
+        value: p.familyHandle,
+        label: p.name,
+      }))
+      return {
+        label: this._('With whom?'),
+        options:
+          options.length > 1
+            ? [...options, {value: '', label: this._('someone else')}]
+            : options,
+      }
+    }
+    if (this._relation === RELATION.PARTNER) {
+      const alone = (this.focusPerson?.extended?.families ?? []).filter(
+        f =>
+          (f.father_handle === focus) !== (f.mother_handle === focus) &&
+          !(f.father_handle && f.mother_handle) &&
+          f.child_ref_list?.length
+      )
+      const childNames = f =>
+        f.child_ref_list
+          .map(c => personCard(this.graph?.person(c.ref)).givenName)
+          .filter(Boolean)
+          .join(', ')
+      return {
+        label: this._('Is this also the other parent of the children?'),
+        options: alone.length
+          ? [
+              ...alone.map(f => ({
+                value: f.handle,
+                label: this._('Yes, of %s', childNames(f)),
+              })),
+              {value: '', label: this._('No')},
+            ]
+          : [],
+      }
+    }
+    return {label: '', options: []}
+  }
+
   _genderChoice() {
     const female = {
       [RELATION.PARENT]: this._('Mother'),
@@ -142,10 +189,15 @@ class GrampsjsFamilyAddPerson extends GrampsjsAppStateMixin(LitElement) {
       [RELATION.SIBLING]: this._('Brother'),
       [RELATION.PARTNER]: this._('Man'),
     }[this._relation]
-    return [
+    const choices = [
       {gender: GENDER.FEMALE, label: female},
       {gender: GENDER.MALE, label: male},
     ]
+    // the first choice is preselected: a woman's partner is more often a man
+    return this._relation === RELATION.PARTNER &&
+      this.focusPerson?.gender === GENDER.FEMALE
+      ? choices.reverse()
+      : choices
   }
 
   _initialValues() {
@@ -287,7 +339,8 @@ class GrampsjsFamilyAddPerson extends GrampsjsAppStateMixin(LitElement) {
               .appState="${this.appState}"
               mode="add"
               .values="${this._formValues}"
-              .partners="${this._partnerList}"
+              .familyOptions="${this._familyChoice.options}"
+              .familyLabel="${this._familyChoice.label}"
               .genderChoice="${this._genders}"
               .excludeHandle="${this.focusPerson?.handle ?? ''}"
               ?saving="${this._saving}"

@@ -102,7 +102,8 @@ class GrampsjsFamilyPersonForm extends GrampsjsAppStateMixin(LitElement) {
   static get properties() {
     return {
       mode: {type: String},
-      partners: {type: Array},
+      familyOptions: {type: Array},
+      familyLabel: {type: String},
       genderChoice: {type: Array},
       values: {type: Object},
       excludeHandle: {type: String},
@@ -119,7 +120,8 @@ class GrampsjsFamilyPersonForm extends GrampsjsAppStateMixin(LitElement) {
   constructor() {
     super()
     this.mode = 'add'
-    this.partners = []
+    this.familyOptions = []
+    this.familyLabel = ''
     this.genderChoice = []
     this.values = emptyValues()
     this.excludeHandle = ''
@@ -146,8 +148,8 @@ class GrampsjsFamilyPersonForm extends GrampsjsAppStateMixin(LitElement) {
     if (changed.has('genderChoice') && this.genderChoice.length) {
       this._gender = this.genderChoice[0].gender
     }
-    if (changed.has('partners')) {
-      this._familyHandle = this.partners[0]?.familyHandle ?? ''
+    if (changed.has('familyOptions')) {
+      this._familyHandle = this.familyOptions[0]?.value ?? ''
     }
   }
 
@@ -271,22 +273,12 @@ class GrampsjsFamilyPersonForm extends GrampsjsAppStateMixin(LitElement) {
   render() {
     const v = this._v
     return html`<form @submit="${this._submit}" novalidate>
-      ${this.partners.length > 1
+      ${this.familyOptions.length > 1
         ? html`<div class="field">
-            <span>${this._('With whom?')}</span>
-            ${this._chips(
-              [
-                ...this.partners.map(p => ({
-                  value: p.familyHandle,
-                  label: p.name,
-                })),
-                {value: '', label: this._('someone else')},
-              ],
-              this._familyHandle,
-              value => {
-                this._familyHandle = value
-              }
-            )}
+            <span>${this.familyLabel}</span>
+            ${this._chips(this.familyOptions, this._familyHandle, value => {
+              this._familyHandle = value
+            })}
           </div>`
         : ''}
       ${this.genderChoice.length

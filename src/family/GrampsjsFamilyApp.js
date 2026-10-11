@@ -492,6 +492,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
         .filter(Boolean)
         .map(name),
       children: n.partners.reduce((sum, p) => sum + p.children.length, 0),
+      siblings: n.siblings.map(sibling => name(sibling.handle)),
     }
   }
 
@@ -673,6 +674,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
         .appState="${this.appState}"
         .open="${this._dialog === 'edit'}"
         .handle="${this._focus}"
+        .graph="${this._graph}"
         @family-dialog:close="${this._closeDialog}"
       ></grampsjs-family-edit-person>
       <grampsjs-family-photo

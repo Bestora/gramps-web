@@ -24,9 +24,19 @@ export async function fetchNeighborhoodGraph(apiGet, grampsId, locale) {
   const focus = people.find(p => p.gramps_id === grampsId)
   if (!focus) return {error: `Person ${grampsId} not found`}
   const known = new Set(people.map(p => p.handle))
-  const missing = (focus.extended?.families ?? [])
-    .flatMap(f => [f.father_handle, f.mother_handle])
-    .filter(h => h && !known.has(h))
+  // partners and siblings are neither ancestors nor descendants
+  const siblings = (
+    focus.extended?.primary_parent_family?.child_ref_list ?? []
+  ).map(ref => ref.ref)
+  const missing = [
+    ...new Set([
+      ...(focus.extended?.families ?? []).flatMap(f => [
+        f.father_handle,
+        f.mother_handle,
+      ]),
+      ...siblings,
+    ]),
+  ].filter(h => h && !known.has(h))
   if (missing.length) {
     const partners = await apiGet(
       `/api/people/?handles=${missing.join(

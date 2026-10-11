@@ -166,7 +166,7 @@ class GrampsjsFamilyDetails extends GrampsjsAppStateMixin(LitElement) {
 
   render() {
     if (!this.card) return ''
-    const {parents, partners, children} = this.relatives
+    const {parents, partners, children, siblings = []} = this.relatives
     return html`
       <button
         class="grip"
@@ -197,6 +197,7 @@ class GrampsjsFamilyDetails extends GrampsjsAppStateMixin(LitElement) {
         ${this._line(this._('Died'), this._event(this.card.death))}
         ${this._line(this._('Parents'), parents.join(', '))}
         ${this._line(this._('Partners'), partners.join(', '))}
+        ${this._line(this._('Siblings'), siblings.join(', '))}
         ${this._line(this._('Children'), children ? `${children}` : '')}
       </dl>
       ${this.canAdd || this.canEdit

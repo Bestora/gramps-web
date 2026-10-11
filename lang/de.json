@@ -550,5 +550,13 @@
     "Remove link": "Verknüpfung entfernen",
     "Link this person": "Verknüpfen",
     "Can be changed in the full view": "Lässt sich in der vollen Ansicht ändern",
-    "The chosen family no longer exists.": "Die gewählte Familie gibt es nicht mehr."
+    "The chosen family no longer exists.": "Die gewählte Familie gibt es nicht mehr.",
+    "Is this also the other parent of the children?": "Ist das auch der andere Elternteil der Kinder?",
+    "Yes, of %s": "Ja, von %s",
+    "No": "Nein",
+    "This family already has two parents.": "Diese Familie hat schon zwei Elternteile.",
+    "Connection removed": "Verbindung gelöst",
+    "Removing a connection keeps the person in the tree.": "Die Person bleibt im Baum, nur die Verbindung wird gelöst.",
+    "Really remove?": "Wirklich lösen?",
+    "Remove connection": "Verbindung lösen"
 }

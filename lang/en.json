@@ -542,5 +542,13 @@
   "Remove link": "Remove link",
   "Link this person": "Link this person",
   "Can be changed in the full view": "Can be changed in the full view",
-  "The chosen family no longer exists.": "The chosen family no longer exists."
+  "The chosen family no longer exists.": "The chosen family no longer exists.",
+  "Is this also the other parent of the children?": "Is this also the other parent of the children?",
+  "Yes, of %s": "Yes, of %s",
+  "No": "No",
+  "This family already has two parents.": "This family already has two parents.",
+  "Connection removed": "Connection removed",
+  "Removing a connection keeps the person in the tree.": "Removing a connection keeps the person in the tree.",
+  "Really remove?": "Really remove?",
+  "Remove connection": "Remove connection"
 }
