@@ -4,10 +4,10 @@ import {html, css, svg, LitElement} from 'lit'
 import {GrampsjsAppStateMixin} from '../mixins/GrampsjsAppStateMixin.js'
 import {familyStyles} from './familyStyles.js'
 import {fireEvent} from '../util.js'
+import {DRAG_THRESHOLD, isTap} from './loader.js'
 
 const MIN_SCALE = 0.4
 const MAX_SCALE = 2
-const DRAG_THRESHOLD = 5
 
 const reducedMotion = () =>
   window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -70,9 +70,9 @@ class GrampsjsFamilyCanvas extends GrampsjsAppStateMixin(LitElement) {
           gap: 8px;
         }
         .card.focus {
-          background: var(--fm-ink);
-          border-color: var(--fm-ink);
-          color: var(--fm-paper);
+          background: var(--fm-focus-bg);
+          border-color: var(--fm-focus-bg);
+          color: var(--fm-focus-fg);
           box-shadow: 0 0 0 6px rgba(30, 43, 36, 0.12);
         }
         .card.unknown {
@@ -109,8 +109,8 @@ class GrampsjsFamilyCanvas extends GrampsjsAppStateMixin(LitElement) {
           font-size: 11px;
         }
         .focus .face {
-          background-color: #2f4a3b;
-          color: #cfe3d5;
+          background-color: var(--fm-focus-face-bg);
+          color: var(--fm-focus-face-fg);
         }
         .text {
           min-width: 0;
@@ -134,7 +134,7 @@ class GrampsjsFamilyCanvas extends GrampsjsAppStateMixin(LitElement) {
           white-space: nowrap;
         }
         .focus .sub {
-          color: #cfe3d5;
+          color: var(--fm-focus-sub);
         }
         .label {
           position: absolute;
@@ -264,9 +264,9 @@ class GrampsjsFamilyCanvas extends GrampsjsAppStateMixin(LitElement) {
     )
   }
 
-  _select(handle) {
+  _select(e, handle) {
     // a drag that ends on a card is not a tap
-    if (this._moved > DRAG_THRESHOLD || !handle) return
+    if (!handle || !isTap(e, this._moved)) return
     fireEvent(this, 'family:select', {handle})
   }
 
@@ -316,7 +316,7 @@ class GrampsjsFamilyCanvas extends GrampsjsAppStateMixin(LitElement) {
       title="${name ?? ''}"
       ?disabled="${node.kind === 'unknown'}"
       aria-current="${node.handle === this.selected ? 'true' : 'false'}"
-      @click="${() => this._select(node.handle)}"
+      @click="${e => this._select(e, node.handle)}"
     >
       ${face}
       <span class="text">

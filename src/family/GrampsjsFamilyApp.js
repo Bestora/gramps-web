@@ -11,7 +11,8 @@ import {
 import {GrampsjsAppStateMixin} from '../mixins/GrampsjsAppStateMixin.js'
 import {fireEvent} from '../util.js'
 import '../components/GrampsjsIcon.js'
-import {familyStyles} from './familyStyles.js'
+import {familyStyles, familyTokens} from './familyStyles.js'
+import {NeighborhoodLoader, LayoutCache} from './loader.js'
 import {buildNeighborhood} from './neighborhood.js'
 import {layoutNeighborhood, ORIENTATION_LTR, ORIENTATION_TTB} from './layout.js'
 import {personCard} from './personCard.js'
@@ -30,6 +31,7 @@ import './GrampsjsFamilyCanvas.js'
 import './GrampsjsFamilyDetails.js'
 
 const ORIENTATION_KEY = 'grampsjs_family_orientation'
+const EMPTY_LAYOUT = {nodes: [], edges: [], width: 0, height: 0}
 
 function readOrientation() {
   try {
@@ -44,6 +46,7 @@ function readOrientation() {
 class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
   static get styles() {
     return [
+      familyTokens,
       familyStyles,
       css`
         :host {
@@ -191,6 +194,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
         .empty {
           position: absolute;
           inset: 0;
+          pointer-events: none;
           display: grid;
           place-items: center;
           text-align: center;
@@ -253,7 +257,23 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     this._menuOpen = false
     this._error = ''
     this._noStart = false
-    this._loadedId = null
+    this._loader = new NeighborhoodLoader(
+      grampsId =>
+        fetchNeighborhoodGraph(this.appState.apiGet, grampsId, this._locale),
+      state => {
+        this._graph = state.graph
+        this._focus = state.focus
+        this._noStart = state.noStart
+        this._error = state.error
+        if (state.error) {
+          fireEvent(this, 'grampsjs:error', {message: state.error})
+        }
+      }
+    )
+    this._layoutCache = new LayoutCache((graph, focus, orientation) =>
+      layoutNeighborhood(buildNeighborhood(graph, focus), orientation)
+    )
+    this._themeObserver = new MutationObserver(() => this._syncTheme())
     this._searchTimer = null
   }
 
@@ -261,12 +281,44 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     return this.appState.settings?.lang || 'en'
   }
 
+  connectedCallback() {
+    super.connectedCallback()
+    this._syncTheme()
+    this._themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    })
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback()
+    this._themeObserver.disconnect()
+  }
+
+  _syncTheme() {
+    this.toggleAttribute(
+      'dark',
+      document.documentElement.getAttribute('data-theme') === 'dark'
+    )
+  }
+
   willUpdate() {
     this.toggleAttribute('details', Boolean(this._graph && this._focus))
   }
 
   updated(changed) {
-    if (changed.has('appState')) {
+    if (!changed.has('appState')) return
+    const prev = changed.get('appState')
+    const now = this.appState
+    // only what decides which person is shown; other appState updates
+    // (strings, db info, ...) must not trigger a reload
+    if (
+      !prev ||
+      prev.path !== now.path ||
+      prev.user !== now.user ||
+      prev.treeConfig !== now.treeConfig ||
+      prev.settings?.homePerson !== now.settings?.homePerson
+    ) {
       this._loadForPath()
     }
   }
@@ -283,29 +335,14 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
   }
 
   async _loadForPath() {
-    const {page, pageId} = this.appState.path
+    const {path} = this.appState
     const grampsId =
-      page === 'person' && pageId ? pageId : await this._myGrampsId()
-    if (!grampsId) {
-      this._noStart = true
-      return
-    }
-    if (grampsId === this._loadedId) return
-    this._loadedId = grampsId
-    this._noStart = false
-    const res = await fetchNeighborhoodGraph(
-      this.appState.apiGet,
-      grampsId,
-      this._locale
-    )
-    if ('error' in res) {
-      this._error = res.error
-      fireEvent(this, 'grampsjs:error', {message: res.error})
-      return
-    }
-    this._error = ''
-    this._graph = res.graph
-    this._focus = res.focus
+      path.page === 'person' && path.pageId
+        ? path.pageId
+        : await this._myGrampsId()
+    // the user navigated on while the start person was being looked up
+    if (this.appState.path !== path) return
+    await this._loader.load(grampsId)
   }
 
   _select(e) {
@@ -440,11 +477,8 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     const cards = this._cards()
     const ready = this._graph && this._focus
     const layout = ready
-      ? layoutNeighborhood(
-          buildNeighborhood(this._graph, this._focus),
-          this._orientation
-        )
-      : {nodes: [], edges: [], width: 0, height: 0}
+      ? this._layoutCache.get(this._graph, this._focus, this._orientation)
+      : EMPTY_LAYOUT
     return html`
       <div class="main">
         <grampsjs-family-canvas
@@ -454,9 +488,9 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
           .selected="${this._focus}"
           @family:select="${this._select}"
         ></grampsjs-family-canvas>
-        ${this._noStart
+        ${this._noStart || this._error
           ? html`<div class="empty">
-              ${this._('Search for a person to get started.')}
+              ${this._error || this._('Search for a person to get started.')}
             </div>`
           : ''}
         <div class="top">
