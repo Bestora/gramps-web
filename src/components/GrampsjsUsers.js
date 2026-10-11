@@ -14,6 +14,7 @@ import {
   mdiDeleteForever,
   mdiDownload,
   mdiFilterOff,
+  mdiLinkOff,
   mdiPencil,
 } from '@mdi/js'
 
@@ -23,6 +24,11 @@ import {fireEvent} from '../util.js'
 
 import './GrampsjsTooltip.js'
 import './GrampsjsIcon.js'
+import './GrampsjsFormSelectObject.js'
+import {
+  TREE_CONFIG_UI_MODES,
+  TREE_CONFIG_USER_PERSONS,
+} from '../family/uiMode.js'
 
 const ALL_ROLES = '__all__'
 
@@ -77,6 +83,7 @@ export class GrampsjsUsers extends GrampsjsTableBase {
       _userData: {type: Array},
       _filterText: {type: String},
       _filterRole: {type: String},
+      _personNames: {state: true},
     }
   }
 
@@ -88,6 +95,7 @@ export class GrampsjsUsers extends GrampsjsTableBase {
     this._userData = []
     this._filterText = ''
     this._filterRole = ALL_ROLES
+    this._personNames = {}
   }
 
   get _filteredData() {
@@ -118,6 +126,8 @@ export class GrampsjsUsers extends GrampsjsTableBase {
           <th>${this._('E-mail')}</th>
           <th>${this._('Role')}</th>
           <th>${this._('Account Source')}</th>
+          <th>${this._('Interface')}</th>
+          <th>${this._('Person')}</th>
           <th></th>
         </tr>
         ${filtered.map(
@@ -128,6 +138,60 @@ export class GrampsjsUsers extends GrampsjsTableBase {
               <td>${obj.email}</td>
               <td>${this._(userRoles[obj.role])}</td>
               <td>${obj.account_source || this._('Password')}</td>
+              <td>
+                ${(() => {
+                  const mode =
+                    this.appState?.treeConfig?.[TREE_CONFIG_UI_MODES]?.[
+                      obj.name
+                    ] ?? ''
+                  // ?selected on the options: a .value on <select> is set before
+                  // Lit renders the options and would be lost
+                  return html`<select
+                    aria-label="${this._('Interface')}"
+                    @change="${e => this._setUiMode(obj.name, e.target.value)}"
+                  >
+                    <option value="" ?selected="${mode === ''}">
+                      ${this._('Default')}
+                    </option>
+                    <option value="family" ?selected="${mode === 'family'}">
+                      ${this._('Family mode')}
+                    </option>
+                    <option value="full" ?selected="${mode === 'full'}">
+                      ${this._('Full view')}
+                    </option>
+                  </select>`
+                })()}
+              </td>
+              <td>
+                ${(() => {
+                  const handle =
+                    this.appState?.treeConfig?.[TREE_CONFIG_USER_PERSONS]?.[
+                      obj.name
+                    ]
+                  return handle
+                    ? html`${this._personNames[handle] ?? '…'}
+                        <md-icon-button
+                          aria-label="${this._('Remove link')}"
+                          @click="${() => this._setPerson(obj.name, '')}"
+                        >
+                          <grampsjs-icon
+                            path="${mdiLinkOff}"
+                            height="18"
+                            width="18"
+                            color="var(--grampsjs-body-font-color-50)"
+                          ></grampsjs-icon>
+                        </md-icon-button>`
+                    : html`<grampsjs-form-select-object
+                        objectType="person"
+                        .appState="${this.appState}"
+                        label="${this._('Select')}"
+                        @select-object:changed="${e => {
+                          const picked = e.detail.objects?.[0]
+                          if (picked) this._setPerson(obj.name, picked.handle)
+                        }}"
+                      ></grampsjs-form-select-object>`
+                })()}
+              </td>
               <td>
                 <md-icon-button
                   class="edit"
@@ -495,6 +559,55 @@ export class GrampsjsUsers extends GrampsjsTableBase {
     if (changed.has('_downloadUrl') && this._downloadUrl) {
       this._startDownload()
     }
+    if (changed.has('data') || changed.has('appState')) {
+      this._loadPersonNames()
+    }
+  }
+
+  async _loadPersonNames() {
+    const links = this.appState?.treeConfig?.[TREE_CONFIG_USER_PERSONS] ?? {}
+    const handles = [...new Set(Object.values(links))].filter(
+      h => !(h in this._personNames)
+    )
+    if (!handles.length) return
+    const res = await this.appState.apiGet(
+      `/api/people/?handles=${handles.join(
+        ','
+      )}&profile=self&keys=handle,profile`
+    )
+    if ('error' in res) return
+    const names = {...this._personNames}
+    for (const p of res.data ?? []) {
+      names[p.handle] = `${p.profile?.name_given ?? ''} ${
+        p.profile?.name_surname ?? ''
+      }`.trim()
+    }
+    this._personNames = names
+  }
+
+  async _setUiMode(username, mode) {
+    const modes = {...(this.appState.treeConfig?.[TREE_CONFIG_UI_MODES] ?? {})}
+    if (mode) modes[username] = mode
+    else delete modes[username]
+    const res = await this.appState.updateTreeConfig({
+      [TREE_CONFIG_UI_MODES]: modes,
+    })
+    if (res && 'error' in res)
+      fireEvent(this, 'grampsjs:error', {message: res.error})
+  }
+
+  async _setPerson(username, handle) {
+    const res = await this.appState.apiPut(
+      `/api/users/${encodeURIComponent(username)}/person/`,
+      {handle},
+      {dbChanged: false}
+    )
+    if ('error' in res) {
+      fireEvent(this, 'grampsjs:error', {message: res.error})
+      return
+    }
+    const config = await this.appState.apiGet('/api/trees/-/config')
+    if ('data' in config) this.appState.cacheTreeConfig(config.data)
   }
 }
 

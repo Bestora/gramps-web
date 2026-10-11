@@ -535,5 +535,9 @@
   "Common ancestors: %s": "Common ancestors: %s",
   "Upload photo": "Upload photo",
   "Edit details": "Edit details",
-  "This is not me": "This is not me"
+  "This is not me": "This is not me",
+  "Interface": "Interface",
+  "Family mode": "Family mode",
+  "Full view": "Full view",
+  "Remove link": "Remove link"
 }

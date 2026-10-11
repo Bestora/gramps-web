@@ -543,5 +543,9 @@
     "Common ancestors: %s": "Gemeinsame Vorfahren: %s",
     "Upload photo": "Foto hochladen",
     "Edit details": "Angaben ändern",
-    "This is not me": "Das bin ich nicht"
+    "This is not me": "Das bin ich nicht",
+    "Interface": "Oberfläche",
+    "Family mode": "Familien-Modus",
+    "Full view": "Volle Ansicht",
+    "Remove link": "Verknüpfung entfernen"
 }
