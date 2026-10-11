@@ -1,6 +1,10 @@
 // test/unit/familyPersonEdit.test.js
 import {describe, it, expect} from 'vitest'
-import {editValues, buildPersonEdit} from '../../src/family/personEdit.js'
+import {
+  editValues,
+  buildPersonEdit,
+  rebaseEdit,
+} from '../../src/family/personEdit.js'
 
 const ids = () => {
   let n = 0
@@ -244,5 +248,63 @@ describe('dates that the short form cannot show', () => {
       ids()
     )
     expect(res.updatedEvents.map(e => e.type)).toEqual(['Occupation'])
+  })
+})
+
+describe('rebaseEdit', () => {
+  const initial = {
+    given: 'Anna',
+    surname: 'Müller',
+    birthName: '',
+    callName: '',
+    occupation: 'Lehrerin',
+    memory: '',
+    birth: {date: d(1932), place: 'pF', placeName: 'Flensburg'},
+    death: {date: null, place: '', placeName: ''},
+    alive: true,
+  }
+  // someone else changed the occupation and the birth year meanwhile
+  const fresh = {
+    ...initial,
+    occupation: 'Rektorin',
+    birth: {date: d(1933), place: 'pF', placeName: 'Flensburg'},
+  }
+
+  it('keeps changes made by others in fields the user did not touch', () => {
+    const submitted = {...initial, callName: 'Änne'}
+    const res = rebaseEdit(initial, submitted, fresh)
+    expect(res.occupation).toBe('Rektorin')
+    expect(res.birth.date).toEqual(d(1933))
+    expect(res.callName).toBe('Änne')
+  })
+
+  it('applies what the user changed', () => {
+    const submitted = {
+      ...initial,
+      occupation: 'Direktorin',
+      birth: {...initial.birth, date: d(1931)},
+      alive: false,
+      death: {date: d(2011), place: '', placeName: ''},
+      memory: 'Neu',
+    }
+    const res = rebaseEdit(initial, submitted, fresh)
+    expect(res.occupation).toBe('Direktorin')
+    expect(res.birth.date).toEqual(d(1931))
+    expect(res.alive).toBe(false)
+    expect(res.death.date).toEqual(d(2011))
+    expect(res.memory).toBe('Neu')
+  })
+
+  it('keeps a photo someone else added when saving on the fresh person', () => {
+    const p = anna()
+    const latest = {...anna(), media_list: [{ref: 'm9'}]}
+    const values = rebaseEdit(
+      editValues(p, p.extended.events),
+      {...editValues(p, p.extended.events), callName: 'Änne'},
+      editValues(latest, latest.extended.events)
+    )
+    const res = buildPersonEdit(latest, latest.extended.events, values, ids())
+    expect(res.person.media_list).toEqual([{ref: 'm9'}])
+    expect(res.person.primary_name.call).toBe('Änne')
   })
 })

@@ -1,9 +1,11 @@
 // Links a newly created or existing person to the focus person.
-import {errorMessage} from './saveHelpers.js'
 //
 // The focus person and any family that is changed are read fresh right
-// before writing, and families are saved with If-Match, so a change made by
-// someone else since the canvas was loaded is never silently overwritten.
+// before writing, so a change made by someone else since the canvas was
+// loaded is kept.
+// ponytail: read-then-write leaves a window of milliseconds; the API's GET
+// ETag hashes the response, not the object, so If-Match cannot close it.
+// Closing it needs a server-side compare-and-set.
 
 export const RELATION = {
   PARENT: 'parent',
@@ -64,19 +66,19 @@ export async function fetchFocus(appState, handle) {
   return 'error' in res ? {error: res.error} : {person: res.data}
 }
 
-// Reads the family fresh, applies change (which may return {error}) and
-// saves it only if nobody changed it in between
+// Reads the family fresh, applies change (which may return {error}) to that
+// copy and saves it
 async function updateFamily(appState, handle, change) {
   const res = await appState.apiGet(`/api/families/${handle}`)
   if ('error' in res) return {error: res.error}
   const family = clean(res.data)
   const next = change(family)
   if ('error' in next) return next
-  return appState.apiPut(
-    `/api/families/${handle}`,
-    {_class: 'Family', ...family, ...next},
-    {ifMatch: res.etag}
-  )
+  return appState.apiPut(`/api/families/${handle}`, {
+    _class: 'Family',
+    ...family,
+    ...next,
+  })
 }
 
 const addChild = handle => family => ({
@@ -139,6 +141,6 @@ export async function linkRelative(appState, options) {
   const problem = checkRelative(fresh.person, options)
   if (problem) return {error: problem}
   const res = await link(appState, fresh.person, options)
-  if ('error' in res) return {error: errorMessage(res)}
+  if ('error' in res) return {error: res.error}
   return {transaction: res.data ?? []}
 }

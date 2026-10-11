@@ -100,7 +100,7 @@ describe('checkRelative', () => {
 })
 
 describe('linkRelative', () => {
-  it('adds a child to the chosen marriage using fresh data and If-Match', async () => {
+  it('adds a child to the chosen marriage using fresh data', async () => {
     // someone else added X to fZ since the canvas was loaded
     const appState = fakeAppState({
       person: annaWith(),
@@ -117,7 +117,6 @@ describe('linkRelative', () => {
     expect(put.url).toBe('/api/families/fZ')
     expect(put.body.child_ref_list.map(c => c.ref)).toEqual(['T', 'X', 'L'])
     expect(put.body.extended).toBeUndefined()
-    expect(put.options.ifMatch).toBe('"e-fZ"')
     expect(res.transaction).toHaveLength(1)
   })
 
@@ -204,7 +203,6 @@ describe('linkRelative', () => {
     expect(put.url).toBe('/api/families/fP')
     expect(put.body.mother_handle).toBe('M')
     expect(put.body.father_handle).toBe('H')
-    expect(put.options.ifMatch).toBe('"e-fP"')
   })
 
   it('refuses a parent slot that was filled in the meantime', async () => {

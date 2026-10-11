@@ -122,8 +122,8 @@ describe('familyApi URLs', () => {
       one: '/api/relations/a/b?locale=de',
       all: '/api/relations/a/b/all?locale=de',
     })
-    expect(personUrl('h')).toBe(
-      '/api/people/h?extend=event_ref_list&profile=self'
+    expect(personUrl('h', 'de')).toBe(
+      '/api/people/h?extend=event_ref_list&profile=self&locale=de'
     )
   })
 })

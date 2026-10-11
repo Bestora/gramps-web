@@ -6,7 +6,7 @@ import {familyStyles} from './familyStyles.js'
 import {fireEvent, fileWithMimeType} from '../util.js'
 import {parseDateInput} from './dates.js'
 import {withMediaRef} from './media.js'
-import {fireUndo, errorMessage} from './saveHelpers.js'
+import {fireUndo} from './saveHelpers.js'
 import {searchPeopleUrl} from './familyApi.js'
 import {personCard} from './personCard.js'
 import './GrampsjsFamilyDialog.js'
@@ -170,7 +170,7 @@ class GrampsjsFamilyPhoto extends GrampsjsAppStateMixin(LitElement) {
       fileWithMimeType(this._file),
       {isJson: false, dbChanged: false}
     )
-    if ('error' in uploaded) return this._fail(errorMessage(uploaded))
+    if ('error' in uploaded) return this._fail(uploaded.error)
     const transaction = [...(uploaded.data ?? [])]
     const media = uploaded.data[0].new
     const update = {...media, _class: 'Media', desc: this._desc.trim()}
@@ -182,25 +182,21 @@ class GrampsjsFamilyPhoto extends GrampsjsAppStateMixin(LitElement) {
         dbChanged: false,
       }
     )
-    if ('error' in put) return this._fail(errorMessage(put), transaction)
+    if ('error' in put) return this._fail(put.error, transaction)
     transaction.push(...(put.data ?? []))
     for (const [index, p] of this._people.entries()) {
       // eslint-disable-next-line no-await-in-loop
       const res = await this.appState.apiGet(`/api/people/${p.handle}`)
-      if ('error' in res) return this._fail(errorMessage(res), transaction)
+      if ('error' in res) return this._fail(res.error, transaction)
       const {extended, profile, backlinks, formatted, ...person} = res.data
       const asProfile = this._profile && index === 0
       // eslint-disable-next-line no-await-in-loop
-      const saved = await this.appState.apiPut(
-        `/api/people/${p.handle}`,
-        {
-          _class: 'Person',
-          ...person,
-          media_list: withMediaRef(person.media_list, media.handle, asProfile),
-        },
-        {ifMatch: res.etag}
-      )
-      if ('error' in saved) return this._fail(errorMessage(saved), transaction)
+      const saved = await this.appState.apiPut(`/api/people/${p.handle}`, {
+        _class: 'Person',
+        ...person,
+        media_list: withMediaRef(person.media_list, media.handle, asProfile),
+      })
+      if ('error' in saved) return this._fail(saved.error, transaction)
       transaction.push(...(saved.data ?? []))
     }
     fireUndo(

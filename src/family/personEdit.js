@@ -165,3 +165,29 @@ export function buildPersonEdit(person, events, values, makeId = makeHandle) {
 
   return {person: next, newObjects, updatedEvents}
 }
+
+const sameEvent = (a, b) =>
+  a?.date === b?.date && (a?.place ?? '') === (b?.place ?? '')
+
+// Puts the user's changes on top of the person as it is now: fields left as
+// they were when the form opened take the current value, so edits made by
+// someone else in the meantime are not overwritten
+export function rebaseEdit(initial, submitted, fresh) {
+  const pick = key =>
+    submitted[key] === initial[key] ? fresh[key] : submitted[key]
+  return {
+    ...submitted,
+    given: pick('given'),
+    surname: pick('surname'),
+    birthName: pick('birthName'),
+    callName: pick('callName'),
+    occupation: pick('occupation'),
+    alive: pick('alive'),
+    birth: sameEvent(submitted.birth, initial.birth)
+      ? fresh.birth
+      : submitted.birth,
+    death: sameEvent(submitted.death, initial.death)
+      ? fresh.death
+      : submitted.death,
+  }
+}

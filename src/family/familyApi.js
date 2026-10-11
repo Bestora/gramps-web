@@ -56,6 +56,6 @@ export function relationUrls(me, other, locale) {
   }
 }
 
-export function personUrl(handle) {
-  return `/api/people/${handle}?extend=event_ref_list&profile=self`
+export function personUrl(handle, locale) {
+  return `/api/people/${handle}?extend=event_ref_list&profile=self&locale=${locale}`
 }

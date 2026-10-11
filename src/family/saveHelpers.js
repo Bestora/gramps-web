@@ -32,12 +32,3 @@ export async function ensurePlaces(appState, values, makeId = makeHandle) {
 export function fireUndo(target, message, transaction, redirect) {
   fireEvent(target, 'transaction:undo', {message, transaction, redirect})
 }
-
-// Message for a failed request; a 412 means the record changed since it was
-// read (If-Match)
-export function errorMessage(res) {
-  if (res?.errorDetail?.status === 412) {
-    return 'Someone else has just changed this. Please try again.'
-  }
-  return res?.error ?? ''
-}
