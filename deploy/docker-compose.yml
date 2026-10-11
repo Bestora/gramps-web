@@ -56,10 +56,24 @@ services:
 
   api:
     <<: *api
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - import socket; socket.create_connection(('localhost', 5000), 2)
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
 
   celery:
     <<: *api
     command: celery -A gramps_webapi.celery worker --loglevel=INFO --concurrency=2
+    # both containers migrate the user database on start; let the API go first
+    depends_on:
+      api:
+        condition: service_healthy
 
   redis:
     image: redis:7.2.4-alpine
