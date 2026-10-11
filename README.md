@@ -3,6 +3,15 @@
 Welcome to **Gramps Web**, a modern, feature-packed, free & open source web app for browsing and collaboratively editing genealogical databases. Fully interoperable with the [Gramps](https://gramps-project.org) desktop application, Gramps Web brings your family history to the web, making it accessible from anywhere and easy to share.
 
 
+## Familien-Modus (dieser Fork)
+
+Familienmitglieder, die über einen Share-Link kommen, sehen eine vereinfachte Oberfläche: den Stammbaum als Leinwand rund um eine Person, mit Suche, „Zu mir“ und umschaltbarer Richtung. Admins wechseln über das Konto-Menü zwischen dieser und der vollen Ansicht.
+
+<p>
+  <img src="images/family-mode-desktop.png" alt="Familien-Modus am PC" width="640">
+  <img src="images/family-mode-phone.png" alt="Familien-Modus am Handy" width="200">
+</p>
+
 ## What is Gramps Web?
 
 **Gramps Web** is a web based application, ideally suited for collaborating with others to build your family tree together. It can be accessed from any mobile or portable web-enabled device. Gramps Web is free & open source software, with the privacy and control of your data a top priority.
