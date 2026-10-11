@@ -48,3 +48,14 @@ export function searchPeopleUrl(query, locale) {
     `${query}*`
   )}&type=person&profile=self&locale=${locale}&page=1&pagesize=8`
 }
+
+export function relationUrls(me, other, locale) {
+  return {
+    one: `/api/relations/${me}/${other}?locale=${locale}`,
+    all: `/api/relations/${me}/${other}/all?locale=${locale}`,
+  }
+}
+
+export function personUrl(handle) {
+  return `/api/people/${handle}?extend=event_ref_list&profile=self`
+}
