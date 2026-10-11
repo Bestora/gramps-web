@@ -16,6 +16,8 @@ import '../components/GrampsjsTreeQuotas.js'
 import {fireEvent, makeHandle} from '../util.js'
 import {
   TREE_CONFIG_APP_TITLE,
+  TREE_CONFIG_SITE_TITLE,
+  TREE_CONFIG_SITE_DESCRIPTION,
   TREE_CONFIG_PRIMARY_COLOR,
   TREE_CONFIG_SECONDARY_COLOR,
   TREE_CONFIG_HOME_PAGE_NOTE,
@@ -468,6 +470,34 @@ export class GrampsjsViewAdminSettings extends GrampsjsView {
         </p>
         <p>
           <md-outlined-button @click="${this._saveAppTitle}"
+            >${this._('_Save')}</md-outlined-button
+          >
+        </p>
+
+        <h3>${this._('Link preview')}</h3>
+        <p>
+          <md-filled-text-field
+            class="settings-text-field"
+            id="site-title-field"
+            label="${this._('Page title')}"
+            .supportingText="${this._(
+              'Shown when a link is shared, e.g. in messengers'
+            )}"
+            .value="${this.appState.treeConfig?.[TREE_CONFIG_SITE_TITLE] ?? ''}"
+          ></md-filled-text-field>
+        </p>
+        <p>
+          <md-filled-text-field
+            class="settings-text-field"
+            id="site-description-field"
+            label="${this._('Description')}"
+            .value="${this.appState.treeConfig?.[
+              TREE_CONFIG_SITE_DESCRIPTION
+            ] ?? ''}"
+          ></md-filled-text-field>
+        </p>
+        <p>
+          <md-outlined-button @click="${this._saveSiteMeta}"
             >${this._('_Save')}</md-outlined-button
           >
         </p>
@@ -1295,6 +1325,17 @@ export class GrampsjsViewAdminSettings extends GrampsjsView {
     const field = this.renderRoot.querySelector('#app-title-field')
     const data = await this.appState.updateTreeConfig({
       [TREE_CONFIG_APP_TITLE]: field.value,
+    })
+    if (data && 'error' in data) {
+      fireEvent(this, 'grampsjs:error', {message: data.error})
+    }
+  }
+
+  async _saveSiteMeta() {
+    const value = id => this.renderRoot.querySelector(id).value.trim()
+    const data = await this.appState.updateTreeConfig({
+      [TREE_CONFIG_SITE_TITLE]: value('#site-title-field'),
+      [TREE_CONFIG_SITE_DESCRIPTION]: value('#site-description-field'),
     })
     if (data && 'error' in data) {
       fireEvent(this, 'grampsjs:error', {message: data.error})

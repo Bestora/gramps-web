@@ -10,6 +10,8 @@ server {
   root   /usr/share/nginx/html;
 
   location / {
+      # fills in the title and description an admin set (see index.html)
+      ssi on;
       try_files $uri $uri/ $uri.html /index.html;
   }
 

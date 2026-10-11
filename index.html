@@ -4,7 +4,6 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="description" content="Gramps Web - research & organize your family tree together">
   <base href="/">
   <link rel="stylesheet" href="webawesome-styles/themes/default.css">
   <link rel="stylesheet" href="fonts/fonts.css">
@@ -19,7 +18,12 @@
   <meta name="apple-mobile-web-app-status-bar" content="#6D4C41">
   <meta name="apple-mobile-web-app-title" content="Gramps">
   <link rel="apple-touch-icon" sizes="192x192" href="images/icon192.png">
+  <!-- nginx (SSI) replaces this block with the title and description set by an admin -->
+  <!--# block name="meta" -->
   <title>Gramps Web</title>
+  <meta name="description" content="Gramps Web - research & organize your family tree together">
+  <!--# endblock -->
+  <!--# include virtual="/api/site-meta/" stub="meta" -->
 </head>
 
 <body>

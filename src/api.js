@@ -185,6 +185,8 @@ export function saveMapLayerSettings({style, hiddenOverlays}) {
 }
 
 export const TREE_CONFIG_APP_TITLE = 'frontend.appTitle'
+export const TREE_CONFIG_SITE_TITLE = 'frontend.siteTitle'
+export const TREE_CONFIG_SITE_DESCRIPTION = 'frontend.siteDescription'
 export const TREE_CONFIG_PRIMARY_COLOR = 'frontend.primaryColor'
 export const TREE_CONFIG_SECONDARY_COLOR = 'frontend.secondaryColor'
 export const TREE_CONFIG_HOME_PAGE_NOTE = 'frontend.homePageNote'
