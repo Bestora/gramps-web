@@ -136,6 +136,13 @@ class GrampsjsFamilyCanvas extends GrampsjsAppStateMixin(LitElement) {
         .focus .sub {
           color: var(--fm-focus-sub);
         }
+        .card.ghost {
+          border: 2px dashed var(--fm-add);
+          background: var(--fm-add-tint);
+          color: var(--fm-add);
+          font-weight: 700;
+          justify-content: center;
+        }
         .label {
           position: absolute;
           font-size: 13px;
@@ -294,6 +301,23 @@ class GrampsjsFamilyCanvas extends GrampsjsAppStateMixin(LitElement) {
 
   _renderCard(node) {
     if (node.kind === 'label') return this._renderLabel(node)
+    if (node.kind === 'ghost') {
+      const text =
+        node.relation === 'parent'
+          ? this._('+ Mother or father')
+          : this._('+ Child')
+      return html`<button
+        class="card ghost"
+        style="left:${node.x}px;top:${node.y}px;width:${node.w}px;height:${node.h}px"
+        @click="${e => {
+          if (isTap(e, this._moved)) {
+            fireEvent(this, 'family:add', {relation: node.relation})
+          }
+        }}"
+      >
+        ${text}
+      </button>`
+    }
     const card = node.handle ? this.cards.get(node.handle) : null
     const kind =
       node.handle === this.selected && node.kind !== 'small'

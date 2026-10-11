@@ -4,6 +4,7 @@
 import {html, css, LitElement} from 'lit'
 import {GrampsjsAppStateMixin} from '../mixins/GrampsjsAppStateMixin.js'
 import {familyStyles} from './familyStyles.js'
+import {fireEvent} from '../util.js'
 
 class GrampsjsFamilyDetails extends GrampsjsAppStateMixin(LitElement) {
   static get styles() {
@@ -46,7 +47,47 @@ class GrampsjsFamilyDetails extends GrampsjsAppStateMixin(LitElement) {
         dd {
           margin: 0;
         }
+        .kin {
+          background: var(--fm-leaf);
+          border-radius: 14px;
+          padding: 10px 14px;
+          margin-bottom: 14px;
+        }
+        .kin strong {
+          display: block;
+        }
+        .kin small {
+          color: var(--fm-muted);
+        }
+        .actions {
+          display: grid;
+          gap: 8px;
+          margin-top: 16px;
+        }
+        .actions button {
+          min-height: 46px;
+          border: none;
+          border-radius: 12px;
+          font-weight: 700;
+          font-size: 15px;
+          background: var(--fm-leaf);
+          color: var(--fm-ink);
+          cursor: pointer;
+        }
+        .actions .add {
+          background: var(--fm-add);
+          color: #fff;
+        }
         @media (max-width: 991px) {
+          :host(:not([expanded])) .kin {
+            display: none;
+          }
+          .actions {
+            grid-template-columns: 1fr 1fr;
+          }
+          .actions .add {
+            grid-column: 1 / -1;
+          }
           :host {
             border-radius: 22px 22px 0 0;
             box-shadow: 0 -10px 30px -12px rgba(20, 40, 30, 0.35);
@@ -88,6 +129,10 @@ class GrampsjsFamilyDetails extends GrampsjsAppStateMixin(LitElement) {
       card: {type: Object},
       relatives: {type: Object},
       expanded: {type: Boolean, reflect: true},
+      kinship: {type: Object},
+      isMe: {type: Boolean},
+      canAdd: {type: Boolean},
+      canEdit: {type: Boolean},
     }
   }
 
@@ -96,6 +141,14 @@ class GrampsjsFamilyDetails extends GrampsjsAppStateMixin(LitElement) {
     this.card = null
     this.relatives = {parents: [], partners: [], children: 0}
     this.expanded = false
+    this.kinship = null
+    this.isMe = false
+    this.canAdd = false
+    this.canEdit = false
+  }
+
+  _action(action) {
+    fireEvent(this, 'family:action', {action})
   }
 
   _line(label, value) {
@@ -124,6 +177,21 @@ class GrampsjsFamilyDetails extends GrampsjsAppStateMixin(LitElement) {
       ></button>
       <h2>${this.card.name}</h2>
       <div class="years">${this.card.years}</div>
+      ${this.isMe
+        ? html`<div class="kin"><strong>${this._('This is you')}</strong></div>`
+        : this.kinship?.relation
+        ? html`<div class="kin">
+            <strong>${this.kinship.relation}</strong>
+            ${this.kinship.ancestors.length
+              ? html`<small
+                  >${this._(
+                    'Common ancestors: %s',
+                    this.kinship.ancestors.join(', ')
+                  )}</small
+                >`
+              : ''}
+          </div>`
+        : ''}
       <dl>
         ${this._line(this._('Born'), this._event(this.card.birth))}
         ${this._line(this._('Died'), this._event(this.card.death))}
@@ -131,6 +199,25 @@ class GrampsjsFamilyDetails extends GrampsjsAppStateMixin(LitElement) {
         ${this._line(this._('Partners'), partners.join(', '))}
         ${this._line(this._('Children'), children ? `${children}` : '')}
       </dl>
+      ${this.canAdd || this.canEdit
+        ? html`<div class="actions">
+            ${this.canAdd
+              ? html`<button class="add" @click="${() => this._action('add')}">
+                  ${this._('Add person')}
+                </button>`
+              : ''}
+            ${this.canAdd
+              ? html`<button @click="${() => this._action('photo')}">
+                  ${this._('Upload photo')}
+                </button>`
+              : ''}
+            ${this.canEdit
+              ? html`<button @click="${() => this._action('edit')}">
+                  ${this._('Edit details')}
+                </button>`
+              : ''}
+          </div>`
+        : ''}
     `
   }
 }

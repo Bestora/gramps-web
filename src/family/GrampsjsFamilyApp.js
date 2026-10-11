@@ -20,15 +20,17 @@ import {
   fetchNeighborhoodGraph,
   fetchGrampsId,
   searchPeopleUrl,
+  relationUrls,
 } from './familyApi.js'
-import {
-  canSwitchUiMode,
-  setUiModeOverride,
-  UI_MODE_FULL,
-  TREE_CONFIG_USER_PERSONS,
-} from './uiMode.js'
+import {kinship as buildKinship} from './kinship.js'
+import {myPersonHandle, onboardingDone} from './me.js'
+import {canSwitchUiMode, setUiModeOverride, UI_MODE_FULL} from './uiMode.js'
 import './GrampsjsFamilyCanvas.js'
 import './GrampsjsFamilyDetails.js'
+import './GrampsjsFamilyAddPerson.js'
+import './GrampsjsFamilyEditPerson.js'
+import './GrampsjsFamilyPhoto.js'
+import './GrampsjsFamilyOnboarding.js'
 
 const ORIENTATION_KEY = 'grampsjs_family_orientation'
 const EMPTY_LAYOUT = {nodes: [], edges: [], width: 0, height: 0}
@@ -58,6 +60,13 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
         }
         :host([details]) {
           grid-template-columns: 1fr 340px;
+        }
+        grampsjs-family-add-person,
+        grampsjs-family-edit-person,
+        grampsjs-family-photo,
+        grampsjs-family-onboarding {
+          /* dialogs live in the top layer, not in the grid */
+          display: contents;
         }
         .main {
           position: relative;
@@ -244,6 +253,10 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
       _menuOpen: {state: true},
       _error: {state: true},
       _noStart: {state: true},
+      _dialog: {state: true},
+      _preset: {state: true},
+      _kinship: {state: true},
+      _onboardingForce: {state: true},
     }
   }
 
@@ -257,6 +270,11 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     this._menuOpen = false
     this._error = ''
     this._noStart = false
+    this._dialog = ''
+    this._preset = ''
+    this._kinship = null
+    this._onboardingForce = false
+    this._onDbChanged = () => this._loader.reload()
     this._loader = new NeighborhoodLoader(
       grampsId =>
         fetchNeighborhoodGraph(this.appState.apiGet, grampsId, this._locale),
@@ -268,10 +286,13 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
         if (state.error) {
           fireEvent(this, 'grampsjs:error', {message: state.error})
         }
+        this._loadKinship()
       }
     )
     this._layoutCache = new LayoutCache((graph, focus, orientation) =>
-      layoutNeighborhood(buildNeighborhood(graph, focus), orientation)
+      layoutNeighborhood(buildNeighborhood(graph, focus), orientation, {
+        ghosts: Boolean(this.appState?.permissions?.canAdd),
+      })
     )
     this._themeObserver = new MutationObserver(() => this._syncTheme())
     this._searchTimer = null
@@ -288,11 +309,17 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
       attributes: true,
       attributeFilter: ['data-theme'],
     })
+    window.addEventListener('db:changed', this._onDbChanged)
   }
 
   disconnectedCallback() {
     super.disconnectedCallback()
     this._themeObserver.disconnect()
+    window.removeEventListener('db:changed', this._onDbChanged)
+  }
+
+  get _me() {
+    return myPersonHandle(this.appState.treeConfig, this.appState.user?.name)
   }
 
   _syncTheme() {
@@ -321,12 +348,59 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     ) {
       this._loadForPath()
     }
+    const username = now.user?.name
+    if (username && !this._dialog && !this._me && !onboardingDone(username)) {
+      this._onboardingForce = false
+      this._dialog = 'onboarding'
+    }
+  }
+
+  async _loadKinship() {
+    const me = this._me
+    const focus = this._focus
+    this._kinship = null
+    if (!me || !focus || me === focus) return
+    const urls = relationUrls(me, focus, this._locale)
+    const [one, all] = await Promise.all([
+      this.appState.apiGet(urls.one),
+      this.appState.apiGet(urls.all),
+    ])
+    if (this._focus !== focus) return
+    const names = new Map(
+      (this._graph?.people() ?? []).map(p => [p.handle, personCard(p).name])
+    )
+    this._kinship = buildKinship(
+      'error' in one ? undefined : one.data,
+      'error' in all ? undefined : all.data,
+      h => names.get(h) ?? ''
+    )
+  }
+
+  _openAdd(relation = '') {
+    this._preset = relation
+    this._dialog = 'add'
+  }
+
+  _onAction(e) {
+    if (e.detail.action === 'add') this._openAdd('')
+    else this._dialog = e.detail.action
+  }
+
+  _closeDialog() {
+    this._dialog = ''
+  }
+
+  async _onboarded(e) {
+    this._dialog = ''
+    if (!e.detail.handle) return
+    // refresh the tree config so "To me" and kinship know the link
+    const res = await this.appState.apiGet('/api/trees/-/config')
+    if ('data' in res) this.appState.cacheTreeConfig(res.data)
+    this._toMe()
   }
 
   async _myGrampsId() {
-    const username = this.appState.user?.name
-    const handle =
-      this.appState.treeConfig?.[TREE_CONFIG_USER_PERSONS]?.[username]
+    const handle = this._me
     if (handle) {
       const id = await fetchGrampsId(this.appState.apiGet, handle)
       if (id) return id
@@ -465,6 +539,15 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
                   ${this._('Switch to full view')}
                 </button>`
               : ''}
+            <button
+              @click="${() => {
+                this._menuOpen = false
+                this._onboardingForce = true
+                this._dialog = 'onboarding'
+              }}"
+            >
+              ${this._('This is not me')}
+            </button>
             <button @click="${() => this.appState.signout()}">
               ${this._('Log out')}
             </button>
@@ -487,6 +570,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
           .cards="${cards}"
           .selected="${this._focus}"
           @family:select="${this._select}"
+          @family:add="${e => this._openAdd(e.detail.relation)}"
         ></grampsjs-family-canvas>
         ${this._noStart || this._error
           ? html`<div class="empty">
@@ -561,8 +645,39 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
             .appState="${this.appState}"
             .card="${cards.get(this._focus)}"
             .relatives="${this._relatives(cards)}"
+            .kinship="${this._kinship}"
+            ?isMe="${Boolean(this._me) && this._focus === this._me}"
+            ?canAdd="${this.appState.permissions?.canAdd}"
+            ?canEdit="${this.appState.permissions?.canEdit}"
+            @family:action="${this._onAction}"
           ></grampsjs-family-details>`
         : ''}
+      <grampsjs-family-add-person
+        .appState="${this.appState}"
+        .open="${this._dialog === 'add'}"
+        .focusPerson="${this._graph?.person(this._focus) ?? null}"
+        .graph="${this._graph}"
+        .preset="${this._preset}"
+        @family-dialog:close="${this._closeDialog}"
+      ></grampsjs-family-add-person>
+      <grampsjs-family-edit-person
+        .appState="${this.appState}"
+        .open="${this._dialog === 'edit'}"
+        .handle="${this._focus}"
+        @family-dialog:close="${this._closeDialog}"
+      ></grampsjs-family-edit-person>
+      <grampsjs-family-photo
+        .appState="${this.appState}"
+        .open="${this._dialog === 'photo'}"
+        .focusPerson="${this._graph?.person(this._focus) ?? null}"
+        @family-dialog:close="${this._closeDialog}"
+      ></grampsjs-family-photo>
+      <grampsjs-family-onboarding
+        .appState="${this.appState}"
+        .open="${this._dialog === 'onboarding'}"
+        .force="${this._onboardingForce}"
+        @family-onboarding:done="${this._onboarded}"
+      ></grampsjs-family-onboarding>
     `
   }
 }
