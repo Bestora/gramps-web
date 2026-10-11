@@ -550,5 +550,10 @@
   "Connection removed": "Connection removed",
   "Removing a connection keeps the person in the tree.": "Removing a connection keeps the person in the tree.",
   "Really remove?": "Really remove?",
-  "Remove connection": "Remove connection"
+  "Remove connection": "Remove connection",
+  "Whole tree": "Whole tree",
+  "Show in the family": "Show in the family",
+  "Drawing the tree …": "Drawing the tree …",
+  "The tree could not be drawn.": "The tree could not be drawn.",
+  "Try again": "Try again"
 }

@@ -558,5 +558,10 @@
     "Connection removed": "Verbindung gelöst",
     "Removing a connection keeps the person in the tree.": "Die Person bleibt im Baum, nur die Verbindung wird gelöst.",
     "Really remove?": "Wirklich lösen?",
-    "Remove connection": "Verbindung lösen"
+    "Remove connection": "Verbindung lösen",
+    "Whole tree": "Ganzer Baum",
+    "Show in the family": "In der Familie zeigen",
+    "Drawing the tree …": "Baum wird gezeichnet …",
+    "The tree could not be drawn.": "Der Baum konnte nicht gezeichnet werden.",
+    "Try again": "Erneut versuchen"
 }

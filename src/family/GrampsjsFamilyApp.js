@@ -21,7 +21,9 @@ import {
   fetchGrampsId,
   searchPeopleUrl,
   relationUrls,
+  fetchFullTreeGraph,
 } from './familyApi.js'
+import {layoutFullTree} from './fullTree.js'
 import {kinship as buildKinship} from './kinship.js'
 import {myPersonHandle, onboardingDone} from './me.js'
 import {canSwitchUiMode, setUiModeOverride, UI_MODE_FULL} from './uiMode.js'
@@ -34,6 +36,15 @@ import './GrampsjsFamilyOnboarding.js'
 
 const ORIENTATION_KEY = 'grampsjs_family_orientation'
 const EMPTY_LAYOUT = {nodes: [], edges: [], width: 0, height: 0}
+const VIEW_KEY = 'grampsjs_family_view'
+
+function readView() {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'tree' ? 'tree' : 'family'
+  } catch (e) {
+    return 'family'
+  }
+}
 
 function readOrientation() {
   try {
@@ -165,6 +176,19 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
           background: none;
           cursor: pointer;
         }
+        .seg.text button {
+          width: auto;
+          padding: 0 12px;
+          font-weight: 700;
+          font-size: 14px;
+        }
+        .seg[hidden] {
+          display: none;
+        }
+        .empty .retry {
+          pointer-events: auto;
+          margin-top: 8px;
+        }
         .seg button[aria-pressed='true'] {
           background: var(--fm-ink);
           color: var(--fm-paper);
@@ -259,6 +283,10 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
       _preset: {state: true},
       _kinship: {state: true},
       _onboardingForce: {state: true},
+      _view: {state: true},
+      _tree: {state: true},
+      _treeState: {state: true},
+      _marked: {state: true},
     }
   }
 
@@ -276,7 +304,16 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     this._preset = ''
     this._kinship = null
     this._onboardingForce = false
-    this._onDbChanged = () => this._loader.reload()
+    this._onDbChanged = () => {
+      this._loader.reload()
+      if (this._tree) this._loadTree()
+    }
+    this._view = readView()
+    this._tree = null
+    this._treeState = ''
+    this._marked = ''
+    this._treeCardsFor = null
+    this._treeCardMap = new Map()
     this._loader = new NeighborhoodLoader(
       grampsId =>
         fetchNeighborhoodGraph(this.appState.apiGet, grampsId, this._locale),
@@ -312,6 +349,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
       attributeFilter: ['data-theme'],
     })
     window.addEventListener('db:changed', this._onDbChanged)
+    if (this._inTree) this._loadTree()
   }
 
   disconnectedCallback() {
@@ -327,6 +365,66 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     return Boolean(canAdd && canEdit)
   }
 
+  get _inTree() {
+    return this._view === 'tree'
+  }
+
+  // the person whose details and actions are shown
+  get _selected() {
+    return this._inTree ? this._marked || this._me : this._focus
+  }
+
+  get _selectedGraph() {
+    return this._inTree ? this._tree?.graph : this._graph
+  }
+
+  async _loadTree() {
+    this._treeState = 'loading'
+    const res = await fetchFullTreeGraph(this.appState.apiGet, this._locale)
+    if ('error' in res) {
+      this._treeState = 'error'
+      return
+    }
+    const root = this._me || res.graph.people()[0]?.handle
+    try {
+      const layout = root ? await layoutFullTree(res.graph, root) : EMPTY_LAYOUT
+      this._tree = {graph: res.graph, layout}
+      this._treeState = ''
+    } catch (e) {
+      this._treeState = 'error'
+    }
+  }
+
+  _setView(view) {
+    this._view = view
+    try {
+      localStorage.setItem(VIEW_KEY, view)
+    } catch (e) {
+      // ignore
+    }
+    if (view === 'tree' && !this._tree) this._loadTree()
+  }
+
+  _showInFamily() {
+    const person = this._selectedGraph?.person(this._selected)
+    this._setView('family')
+    if (person) fireEvent(this, 'nav', {path: `person/${person.gramps_id}`})
+  }
+
+  _canvas() {
+    return this.renderRoot.querySelector('grampsjs-family-canvas')
+  }
+
+  _treeCards() {
+    if (this._treeCardsFor !== this._tree) {
+      this._treeCardsFor = this._tree
+      this._treeCardMap = new Map(
+        (this._tree?.graph.people() ?? []).map(p => [p.handle, personCard(p)])
+      )
+    }
+    return this._treeCardMap
+  }
+
   get _me() {
     return myPersonHandle(this.appState.treeConfig, this.appState.user?.name)
   }
@@ -339,10 +437,20 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
   }
 
   willUpdate() {
-    this.toggleAttribute('details', Boolean(this._graph && this._focus))
+    this.toggleAttribute(
+      'details',
+      Boolean(this._selectedGraph && this._selected)
+    )
   }
 
   updated(changed) {
+    if (
+      changed.has('_marked') ||
+      changed.has('_view') ||
+      changed.has('_tree')
+    ) {
+      this._loadKinship()
+    }
     if (!changed.has('appState')) return
     const prev = changed.get('appState')
     const now = this.appState
@@ -366,7 +474,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
 
   async _loadKinship() {
     const me = this._me
-    const focus = this._focus
+    const focus = this._selected
     this._kinship = null
     if (!me || !focus || me === focus) return
     const urls = relationUrls(me, focus, this._locale)
@@ -374,9 +482,12 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
       this.appState.apiGet(urls.one),
       this.appState.apiGet(urls.all),
     ])
-    if (this._focus !== focus) return
+    if (this._selected !== focus) return
     const names = new Map(
-      (this._graph?.people() ?? []).map(p => [p.handle, personCard(p).name])
+      (this._selectedGraph?.people() ?? []).map(p => [
+        p.handle,
+        personCard(p).name,
+      ])
     )
     this._kinship = buildKinship(
       'error' in one ? undefined : one.data,
@@ -436,6 +547,11 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
   }
 
   _toMe() {
+    if (this._inTree) {
+      this._marked = ''
+      this._canvas()?.centerOn(this._me)
+      return
+    }
     fireEvent(this, 'nav', {path: ''})
   }
 
@@ -466,6 +582,11 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
   _openResult(result) {
     this._query = ''
     this._results = []
+    if (this._inTree) {
+      this._marked = result.object.handle
+      this._canvas()?.centerOn(result.object.handle)
+      return
+    }
     fireEvent(this, 'nav', {path: `person/${result.object.gramps_id}`})
   }
 
@@ -483,7 +604,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
   }
 
   _relatives(cards) {
-    const n = buildNeighborhood(this._graph, this._focus)
+    const n = buildNeighborhood(this._selectedGraph, this._selected)
     const name = h => cards.get(h)?.name
     return {
       parents: [n.parents.father, n.parents.mother].filter(Boolean).map(name),
@@ -566,23 +687,53 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     </div>`
   }
 
+  _renderTreeState() {
+    if (!this._inTree || !this._treeState) return ''
+    return html`<div class="empty">
+      ${this._treeState === 'loading'
+        ? this._('Drawing the tree …')
+        : html`<div>
+            <p>${this._('The tree could not be drawn.')}</p>
+            <button class="pill float retry" @click="${this._loadTree}">
+              ${this._('Try again')}
+            </button>
+          </div>`}
+    </div>`
+  }
+
   render() {
-    const cards = this._cards()
+    const familyCards = this._cards()
+    const cards = this._inTree ? this._treeCards() : familyCards
     const ready = this._graph && this._focus
-    const layout = ready
-      ? this._layoutCache.get(this._graph, this._focus, this._orientation)
-      : EMPTY_LAYOUT
+    let layout = EMPTY_LAYOUT
+    if (this._inTree) layout = this._tree?.layout ?? EMPTY_LAYOUT
+    else if (ready) {
+      layout = this._layoutCache.get(
+        this._graph,
+        this._focus,
+        this._orientation
+      )
+    }
+    const selected = this._selected
+    const graph = this._selectedGraph
+    const hasDetails = Boolean(graph && selected && cards.get(selected))
     return html`
       <div class="main">
         <grampsjs-family-canvas
           .appState="${this.appState}"
           .layout="${layout}"
           .cards="${cards}"
-          .selected="${this._focus}"
+          .selected="${selected}"
+          .marked="${this._me}"
+          .tapEvent="${this._inTree ? 'family:mark' : 'family:select'}"
           @family:select="${this._select}"
+          @family:mark="${e => {
+            this._marked = e.detail.handle
+          }}"
           @family:add="${e => this._openAdd(e.detail.relation)}"
         ></grampsjs-family-canvas>
-        ${this._noStart || this._error
+        ${this._renderTreeState()}
+        ${!this._inTree && (this._noStart || this._error)
           ? html`<div class="empty">
               ${this._error || this._('Search for a person to get started.')}
             </div>`
@@ -593,9 +744,28 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
           </button>
           ${this._renderSearch()}
           <div
+            class="seg text float"
+            role="group"
+            aria-label="${this._('View')}"
+          >
+            <button
+              aria-pressed="${!this._inTree}"
+              @click="${() => this._setView('family')}"
+            >
+              ${this._('Family')}
+            </button>
+            <button
+              aria-pressed="${this._inTree}"
+              @click="${() => this._setView('tree')}"
+            >
+              ${this._('Whole tree')}
+            </button>
+          </div>
+          <div
             class="seg float"
             role="group"
             aria-label="${this._('Direction')}"
+            ?hidden="${this._inTree}"
           >
             <button
               aria-pressed="${this._orientation === ORIENTATION_TTB}"
@@ -650,37 +820,39 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
           </button>
         </div>
       </div>
-      ${ready
+      ${hasDetails
         ? html`<grampsjs-family-details
             .appState="${this.appState}"
-            .card="${cards.get(this._focus)}"
+            .card="${cards.get(selected)}"
             .relatives="${this._relatives(cards)}"
             .kinship="${this._kinship}"
-            ?isMe="${Boolean(this._me) && this._focus === this._me}"
+            ?isMe="${Boolean(this._me) && selected === this._me}"
             ?canAdd="${this._canLink}"
             ?canEdit="${this.appState.permissions?.canEdit}"
+            ?familyLink="${this._inTree}"
             @family:action="${this._onAction}"
+            @family:show-family="${this._showInFamily}"
           ></grampsjs-family-details>`
         : ''}
       <grampsjs-family-add-person
         .appState="${this.appState}"
         .open="${this._dialog === 'add'}"
-        .focusPerson="${this._graph?.person(this._focus) ?? null}"
-        .graph="${this._graph}"
+        .focusPerson="${graph?.person(selected) ?? null}"
+        .graph="${graph}"
         .preset="${this._preset}"
         @family-dialog:close="${this._closeDialog}"
       ></grampsjs-family-add-person>
       <grampsjs-family-edit-person
         .appState="${this.appState}"
         .open="${this._dialog === 'edit'}"
-        .handle="${this._focus}"
-        .graph="${this._graph}"
+        .handle="${selected}"
+        .graph="${graph}"
         @family-dialog:close="${this._closeDialog}"
       ></grampsjs-family-edit-person>
       <grampsjs-family-photo
         .appState="${this.appState}"
         .open="${this._dialog === 'photo'}"
-        .focusPerson="${this._graph?.person(this._focus) ?? null}"
+        .focusPerson="${graph?.person(selected) ?? null}"
         @family-dialog:close="${this._closeDialog}"
       ></grampsjs-family-photo>
       <grampsjs-family-onboarding

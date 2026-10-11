@@ -133,6 +133,7 @@ class GrampsjsFamilyDetails extends GrampsjsAppStateMixin(LitElement) {
       isMe: {type: Boolean},
       canAdd: {type: Boolean},
       canEdit: {type: Boolean},
+      familyLink: {type: Boolean},
     }
   }
 
@@ -145,6 +146,7 @@ class GrampsjsFamilyDetails extends GrampsjsAppStateMixin(LitElement) {
     this.isMe = false
     this.canAdd = false
     this.canEdit = false
+    this.familyLink = false
   }
 
   _action(action) {
@@ -200,6 +202,13 @@ class GrampsjsFamilyDetails extends GrampsjsAppStateMixin(LitElement) {
         ${this._line(this._('Siblings'), siblings.join(', '))}
         ${this._line(this._('Children'), children ? `${children}` : '')}
       </dl>
+      ${this.familyLink
+        ? html`<div class="actions">
+            <button @click="${() => fireEvent(this, 'family:show-family')}">
+              ${this._('Show in the family')}
+            </button>
+          </div>`
+        : ''}
       ${this.canAdd || this.canEdit
         ? html`<div class="actions">
             ${this.canAdd
