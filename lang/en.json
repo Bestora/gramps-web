@@ -459,5 +459,21 @@
   "Full name": "Full name",
   "This link is no longer valid.": "This link is no longer valid.",
   "Share key": "Share key",
-  "Enter the share key configured on the server (GRAMPSWEB_SHARE_KEY). Whoever has the link only enters their full name and gets an Editor account.": "Enter the share key configured on the server (GRAMPSWEB_SHARE_KEY). Whoever has the link only enters their full name and gets an Editor account."
+  "Enter the share key configured on the server (GRAMPSWEB_SHARE_KEY). Whoever has the link only enters their full name and gets an Editor account.": "Enter the share key configured on the server (GRAMPSWEB_SHARE_KEY). Whoever has the link only enters their full name and gets an Editor account.",
+  "1 child": "1 child",
+  "%s children": "%s children",
+  "with %s": "with %s",
+  "Search person": "Search person",
+  "To me": "To me",
+  "Direction": "Direction",
+  "Top to bottom": "Top to bottom",
+  "Left to right": "Left to right",
+  "Switch to full view": "Switch to full view",
+  "View family mode": "View family mode",
+  "Search for a person to get started.": "Search for a person to get started.",
+  "Born": "Born",
+  "Died": "Died",
+  "Partners": "Partners",
+  "More": "More",
+  "Less": "Less"
 }

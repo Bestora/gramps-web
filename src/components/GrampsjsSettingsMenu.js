@@ -16,6 +16,7 @@ import {
   mdiAccountMultiple,
   mdiAccountCog,
   mdiAccountCircle,
+  mdiFamilyTree,
   mdiHelp,
   mdiCloud,
   mdiOpenInNew,
@@ -24,7 +25,12 @@ import {sharedStyles, appBarIconButtonStyles} from '../SharedStyles.js'
 import {GrampsjsAppStateMixin} from '../mixins/GrampsjsAppStateMixin.js'
 import {renderIconSvg} from '../icons.js'
 import './GrampsjsIcon.js'
-import {clickKeyHandler} from '../util.js'
+import {clickKeyHandler, fireEvent} from '../util.js'
+import {
+  canSwitchUiMode,
+  setUiModeOverride,
+  UI_MODE_FAMILY,
+} from '../family/uiMode.js'
 
 const menuItems = [
   ['User settings', '/settings/user', mdiAccountCog, false],
@@ -84,6 +90,24 @@ class GrampsjsSettingsMenu extends GrampsjsAppStateMixin(LitElement) {
           menu-corner="end-end"
         >
         ${menuItems.map(menuItem => this._menuItem(...menuItem))}
+          ${
+            canSwitchUiMode(this.appState.user?.role)
+              ? html`<md-menu-item
+                  @click="${() => {
+                    setUiModeOverride(UI_MODE_FAMILY)
+                    fireEvent(window, 'uimode:changed')
+                  }}"
+                  @keydown="${clickKeyHandler}"
+                >
+                  <div slot="headline">${this._('View family mode')}</div>
+                  <grampsjs-icon
+                    slot="start"
+                    path="${mdiFamilyTree}"
+                    color="var(--icon-color)"
+                  ></grampsjs-icon>
+                </md-menu-item>`
+              : ''
+          }
           ${this._renderAccountItem()}
           <md-divider role="separator" tabindex="-1"></md-divider>
           <md-menu-item class="red"

@@ -62,6 +62,12 @@ import './components/GrampsjsUpdateAvailable.js'
 import './components/GrampsjsUpgradeDb.js'
 import './components/GrampsjsObjectLink.js'
 import './components/GrampsjsObjectPreview.js'
+import './family/GrampsjsFamilyApp.js'
+import {
+  resolveUiMode,
+  getUiModeOverride,
+  UI_MODE_FAMILY,
+} from './family/uiMode.js'
 import '@material/web/dialog/dialog.js'
 import {sharedStyles} from './SharedStyles.js'
 import {applyScheme, DEFAULT_PRIMARY, DEFAULT_SECONDARY} from './theme.js'
@@ -656,6 +662,21 @@ export class GrampsJs extends LitElement {
     ) {
       this._loadStrings(grampsStrings, this.appState.settings.lang)
     }
+    if (this.appState.user === undefined) {
+      // account details still loading: avoid flashing the full UI
+      return html`<md-linear-progress indeterminate></md-linear-progress>`
+    }
+    const uiMode = resolveUiMode({
+      role: this.appState.user?.role,
+      username: this.appState.user?.name,
+      treeConfig: this.appState.treeConfig,
+      override: getUiModeOverride(),
+    })
+    if (uiMode === UI_MODE_FAMILY) {
+      return html`<grampsjs-family-app
+        .appState="${this.appState}"
+      ></grampsjs-family-app>`
+    }
     return html`
       <mwc-drawer
         type="${this.appState.screenSize !== 'small' ? 'dismissible' : 'modal'}"
@@ -757,6 +778,7 @@ export class GrampsJs extends LitElement {
     )
     window.addEventListener('online', () => this._handleOnline())
     window.addEventListener('token:refresh', () => this._handleRefresh(true))
+    window.addEventListener('uimode:changed', () => this.requestUpdate())
 
     if (window.location.pathname.includes('/oidc/complete')) {
       return
@@ -1041,7 +1063,14 @@ export class GrampsJs extends LitElement {
     this.progress = false
     this.setPermissions()
     this._loadTreeConfig()
+    this._loadUser()
     this.appState.loadActiveTasks()
+  }
+
+  _loadUser() {
+    this.appState.apiGet('/api/users/-/').then(res => {
+      this._updateAppState({user: 'data' in res ? res.data : null})
+    })
   }
 
   _loadTreeConfig() {
