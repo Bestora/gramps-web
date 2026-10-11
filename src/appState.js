@@ -359,7 +359,11 @@ export function getInitialAppState() {
     updateSettings: (settings = {}, tree = false) =>
       updateSettings(settings, tree),
     updateTreeConfig: async (patch = {}) => {
-      const merged = {...getTreeConfig(), ...patch}
+      // merge into what the server has now, not the cached copy, so keys
+      // written in the meantime (e.g. a family member's person link) survive
+      const current = await apiGet(auth, '/api/trees/-/config')
+      const base = 'data' in current ? current.data : getTreeConfig()
+      const merged = {...base, ...patch}
       const res = await apiPutPostDelete(
         auth,
         'PUT',

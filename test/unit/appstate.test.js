@@ -1,6 +1,7 @@
-import {describe, it, expect, afterEach} from 'vitest'
+import {describe, it, expect, afterEach, vi} from 'vitest'
 import {
   appStateUpdatePermissions,
+  getInitialAppState,
   isTaskInTree,
   shouldSignalTreeMissing,
 } from '../../src/appState.js'
@@ -152,5 +153,54 @@ describe('isTaskInTree', () => {
 
   it('keeps all tasks when the current tree is unknown', () => {
     expect(isTaskInTree({tree: 'tree-b'}, undefined)).to.be.true
+  })
+})
+
+describe('updateTreeConfig', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    localStorage.clear()
+  })
+
+  it('merges into the server config, not the cached copy', async () => {
+    // the cached copy is older than what the server has now
+    localStorage.setItem(
+      'grampsjs_tree_config',
+      JSON.stringify({unknown: {'frontend.appTitle': 'Alt'}})
+    )
+    const puts = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url, init = {}) => {
+        if (init.method === 'PUT') {
+          puts.push(JSON.parse(init.body))
+          return Promise.resolve({
+            status: 200,
+            ok: true,
+            json: () => Promise.resolve({}),
+            headers: {get: () => null},
+          })
+        }
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              'frontend.appTitle': 'Alt',
+              'frontend.userPersons': {anna: 'H1'},
+            }),
+          headers: {get: () => null},
+        })
+      })
+    )
+    const appState = getInitialAppState()
+    await appState.updateTreeConfig({'frontend.uiModes': {bob: 'full'}})
+    expect(puts).toEqual([
+      {
+        'frontend.appTitle': 'Alt',
+        'frontend.userPersons': {anna: 'H1'},
+        'frontend.uiModes': {bob: 'full'},
+      },
+    ])
   })
 })
