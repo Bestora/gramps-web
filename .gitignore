@@ -27,3 +27,4 @@
 # deploy secrets
 /deploy/.env
 /.superpowers/
+/.playwright-mcp/

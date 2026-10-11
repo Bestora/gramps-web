@@ -25,7 +25,7 @@ im Baum und trägt ohne Hilfe ein Enkelkind mit Geburtsdatum ein.
 | Mehrere Ehen | Alle Partner werden bei der Person gezeigt, Kinder nach Partner gruppiert. Beim Kind-Hinzufügen „Mit wem?“, sobald es mehr als einen Partner gibt. |
 | Geschichten | Nebensache: als „Erinnerung“ unter „Weitere Angaben“ beim Bearbeiten. |
 | „Du“ | Beim ersten Login automatisch per Name mit einer Person verknüpfen; bei mehreren Treffern Auswahl; bei keinem Treffer optional sich selbst anlegen oder überspringen. Später änderbar. |
-| Volle UI | Bleibt wie sie ist, plus Schalter „Familien-Modus ansehen“ für Admins. |
+| Volle UI | Bleibt wie sie ist. Owner/Admins wechseln jederzeit hin und her: „Familien-Modus ansehen“ in der vollen UI, „Zur vollen Ansicht“ im Konto-Menü des Familien-Modus. |
 
 ## Architektur
 
@@ -50,8 +50,9 @@ funktioniert). Alle anderen Pfade leiten auf `/` um.
 2. sonst `role >= ROLE_OWNER` → `'full'`, sonst `'family'`.
 
 Die Rolle kommt aus `GET /api/users/-/` (wird beim Start einmal geladen und in
-`appState.user` abgelegt). Admins/Owner können zusätzlich lokal umschalten
-(`localStorage`, nur Ansicht – keine Rechteänderung).
+`appState.user` abgelegt). Owner/Admins können zusätzlich jederzeit umschalten – in beide Richtungen
+(`localStorage`, nur Ansicht – keine Rechteänderung). Der Schalter erscheint
+nur für Accounts mit `role >= ROLE_OWNER`.
 
 Das ist eine Bedienentscheidung, keine Rechtesperre: Was ein Account darf,
 regelt weiter seine Rolle.
