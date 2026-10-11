@@ -50,3 +50,23 @@ export function formatDateInput(date) {
   else if (month) core = `${pad(month)}.${year}`
   return `${PREFIX[date.modifier] ?? ''}${core}`
 }
+
+// Whether the short text form can show a date without losing anything:
+// Gregorian, regular quality, no range/span/text, no new-year offset
+export function isSimpleDate(date) {
+  if (!date) return true
+  return (
+    !date.calendar &&
+    !date.quality &&
+    !date.newyear &&
+    [0, 1, 2, 3].includes(date.modifier ?? 0) &&
+    (date.dateval?.length ?? 4) <= 4
+  )
+}
+
+// Text left as it was keeps the original date object, so saving does not
+// rewrite (and simplify) a date nobody touched
+export function resolveDateInput(text, initialText, originalDate) {
+  if (originalDate && text === initialText) return {date: originalDate}
+  return parseDateInput(text)
+}

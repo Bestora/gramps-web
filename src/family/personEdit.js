@@ -1,6 +1,7 @@
 // src/family/personEdit.js
 // Turns the family edit form into updates of a person and its events.
 import {emptyDate, makeHandle} from '../util.js'
+import {isSimpleDate} from './dates.js'
 
 const strip = ({extended, profile, backlinks, formatted, ...rest}) => rest
 const sameDate = (a, b) =>
@@ -23,11 +24,16 @@ const birthNameOf = person =>
 export function editValues(person, events) {
   const birth = eventAt(person, events, 'birth_ref_index')
   const death = eventAt(person, events, 'death_ref_index')
-  const eventValues = (e, profile) => ({
-    date: e && !isEmptyDate(e.date) ? e.date : null,
-    place: e?.place ?? '',
-    placeName: e ? profile?.place_name ?? '' : '',
-  })
+  const eventValues = (e, profile) => {
+    const date = e && !isEmptyDate(e.date) ? e.date : null
+    return {
+      date,
+      place: e?.place ?? '',
+      placeName: e ? profile?.place_name ?? '' : '',
+      simple: isSimpleDate(date),
+      display: e ? profile?.date ?? '' : '',
+    }
+  }
   return {
     given: person.primary_name?.first_name ?? '',
     surname: person.primary_name?.surname_list?.[0]?.surname ?? '',

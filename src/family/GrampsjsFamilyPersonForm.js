@@ -4,7 +4,7 @@ import {html, css, LitElement} from 'lit'
 import {GrampsjsAppStateMixin} from '../mixins/GrampsjsAppStateMixin.js'
 import {familyStyles} from './familyStyles.js'
 import {fireEvent} from '../util.js'
-import {parseDateInput, formatDateInput} from './dates.js'
+import {formatDateInput, resolveDateInput} from './dates.js'
 import {searchPeopleUrl} from './familyApi.js'
 import {personCard} from './personCard.js'
 import './GrampsjsFamilyPlaceInput.js'
@@ -86,6 +86,11 @@ class GrampsjsFamilyPersonForm extends GrampsjsAppStateMixin(LitElement) {
           color: var(--fm-moss);
           cursor: pointer;
         }
+        .hint {
+          font-size: 13px;
+          color: var(--fm-muted);
+          margin-top: 4px;
+        }
         textarea.input {
           min-height: 96px;
           resize: vertical;
@@ -135,6 +140,7 @@ class GrampsjsFamilyPersonForm extends GrampsjsAppStateMixin(LitElement) {
         birth: formatDateInput(this.values.birth?.date),
         death: formatDateInput(this.values.death?.date),
       }
+      this._initialDates = {...this._dates}
       this._errors = {}
     }
     if (changed.has('genderChoice') && this.genderChoice.length) {
@@ -177,7 +183,11 @@ class GrampsjsFamilyPersonForm extends GrampsjsAppStateMixin(LitElement) {
     const errors = {}
     const parsed = {}
     for (const key of ['birth', 'death']) {
-      const res = parseDateInput(this._dates[key])
+      const res = resolveDateInput(
+        this._dates[key],
+        this._initialDates?.[key],
+        this.values[key]?.date
+      )
       if (res.error)
         errors[key] = this._('Please enter e.g. 12.03.1958 or 1958.')
       else parsed[key] = res.date
@@ -199,6 +209,16 @@ class GrampsjsFamilyPersonForm extends GrampsjsAppStateMixin(LitElement) {
   }
 
   _dateField(key, label) {
+    if (this.values[key]?.simple === false) {
+      // ranges, estimates, other calendars: shown, but kept as they are
+      return html`<div class="field">
+        <span>${label}</span>
+        <div class="input" aria-readonly="true">
+          ${this.values[key].display}
+        </div>
+        <div class="hint">${this._('Can be changed in the full view')}</div>
+      </div>`
+    }
     return html`<label class="field">
       <span>${label}</span>
       <input
@@ -310,7 +330,11 @@ class GrampsjsFamilyPersonForm extends GrampsjsAppStateMixin(LitElement) {
               return html`<button
                 type="button"
                 @click="${() =>
-                  fireEvent(this, 'family-form:link', {handle: o.handle})}"
+                  fireEvent(this, 'family-form:link', {
+                    handle: o.handle,
+                    gender: o.gender,
+                    familyHandle: this._familyHandle,
+                  })}"
               >
                 <span>${card.name} <small>${card.years}</small></span>
                 <em>${this._('Link this person')}</em>

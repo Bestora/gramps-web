@@ -63,8 +63,14 @@ describe('editValues', () => {
       callName: '',
       occupation: 'Lehrerin',
       memory: '',
-      birth: {date: d(1932, 5, 3), place: 'pF', placeName: 'Flensburg'},
-      death: {date: null, place: '', placeName: ''},
+      birth: {
+        date: d(1932, 5, 3),
+        place: 'pF',
+        placeName: 'Flensburg',
+        simple: true,
+        display: '',
+      },
+      death: {date: null, place: '', placeName: '', simple: true, display: ''},
       alive: true,
     })
   })
@@ -198,5 +204,45 @@ describe('buildPersonEdit', () => {
     )
     expect(res.newObjects[0]).toMatchObject({type: 'Birth', handle: 'n1'})
     expect(res.person.birth_ref_index).toBe(2)
+  })
+})
+
+describe('dates that the short form cannot show', () => {
+  it('marks them read-only with the display text', () => {
+    const p = anna()
+    p.extended.events[0].date = {
+      _class: 'Date',
+      calendar: 0,
+      modifier: 4,
+      quality: 1,
+      dateval: [0, 0, 1930, false, 0, 0, 1932, false],
+    }
+    p.profile.birth.date = 'zwischen 1930 und 1932 (geschätzt)'
+    const v = editValues(p, p.extended.events)
+    expect(v.birth.simple).toBe(false)
+    expect(v.birth.display).toBe('zwischen 1930 und 1932 (geschätzt)')
+    expect(v.death.simple).toBe(true)
+  })
+
+  it('does not rewrite an untouched server date', () => {
+    const p = anna()
+    p.extended.events[0].date = {
+      _class: 'Date',
+      calendar: 0,
+      modifier: 0,
+      quality: 0,
+      dateval: [3, 5, 1932, false],
+      sortval: 2426465,
+      text: '',
+      newyear: 0,
+    }
+    const v = editValues(p, p.extended.events)
+    const res = buildPersonEdit(
+      p,
+      p.extended.events,
+      {...v, occupation: 'Rektorin'},
+      ids()
+    )
+    expect(res.updatedEvents.map(e => e.type)).toEqual(['Occupation'])
   })
 })
