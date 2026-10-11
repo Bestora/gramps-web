@@ -131,3 +131,48 @@ describe('layoutFullTree with Graphviz', () => {
     expect(layout.nodes).toHaveLength(1)
   })
 })
+
+describe('layoutFullTree left to right', () => {
+  const ref = r => ({ref: r})
+  const fam = (handle, father, mother, children = []) => ({
+    handle,
+    father_handle: father,
+    mother_handle: mother,
+    child_ref_list: children.map(ref),
+    type: 'Married',
+  })
+  const f1 = fam('f1', 'M', 'W', ['C1', 'C2'])
+  const p = (handle, ext = {}) => ({handle, gramps_id: handle, extended: ext})
+  const graph = new FamilyGraph([
+    p('M', {families: [f1]}),
+    p('W', {families: [f1]}),
+    p('C1', {primary_parent_family: f1}),
+    p('C2', {primary_parent_family: f1}),
+  ])
+
+  it('puts generations side by side with normal cards and no overlap', async () => {
+    const layout = await layoutFullTree(graph, 'M', 'ltr')
+    const node = h => layout.nodes.find(n => n.handle === h)
+    for (const n of layout.nodes) {
+      expect(n.w).toBe(FULL_TREE_CARD.w)
+      expect(n.h).toBe(FULL_TREE_CARD.h)
+    }
+    // parents left of their children, partners above each other
+    expect(node('M').x).toBeLessThan(node('C1').x)
+    expect(node('M').x).toBe(node('W').x)
+    const cards = layout.nodes
+    const overlaps = (a, b) =>
+      a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+    for (let i = 0; i < cards.length; i += 1) {
+      for (let j = i + 1; j < cards.length; j += 1) {
+        expect(overlaps(cards[i], cards[j])).toBe(false)
+      }
+    }
+  })
+
+  it('keeps top to bottom as the default', async () => {
+    const layout = await layoutFullTree(graph, 'M')
+    const node = h => layout.nodes.find(n => n.handle === h)
+    expect(node('M').y).toBeLessThan(node('C1').y)
+  })
+})

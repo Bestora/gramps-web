@@ -4,7 +4,9 @@
 import {html, css, LitElement} from 'lit'
 import {GrampsjsAppStateMixin} from '../mixins/GrampsjsAppStateMixin.js'
 import {familyStyles} from './familyStyles.js'
+import {mdiClose} from '@mdi/js'
 import {fireEvent} from '../util.js'
+import '../components/GrampsjsIcon.js'
 
 class GrampsjsFamilyDetails extends GrampsjsAppStateMixin(LitElement) {
   static get styles() {
@@ -16,8 +18,31 @@ class GrampsjsFamilyDetails extends GrampsjsAppStateMixin(LitElement) {
           background: var(--fm-card);
           box-sizing: border-box;
         }
+        :host {
+          position: relative;
+        }
         .grip {
           display: none;
+        }
+        .close {
+          position: absolute;
+          top: 12px;
+          right: 12px;
+          width: 44px;
+          height: 44px;
+          border: none;
+          border-radius: 50%;
+          background: none;
+          color: var(--fm-muted);
+          cursor: pointer;
+          display: grid;
+          place-items: center;
+        }
+        .close:hover {
+          background: var(--fm-leaf);
+        }
+        h2 {
+          padding-right: 44px;
         }
         h2 {
           margin: 0;
@@ -177,6 +202,13 @@ class GrampsjsFamilyDetails extends GrampsjsAppStateMixin(LitElement) {
           this.expanded = !this.expanded
         }}"
       ></button>
+      <button
+        class="close"
+        aria-label="${this._('Close')}"
+        @click="${() => fireEvent(this, 'family:close-details')}"
+      >
+        <grampsjs-icon path="${mdiClose}" color="currentColor"></grampsjs-icon>
+      </button>
       <h2>${this.card.name}</h2>
       <div class="years">${this.card.years}</div>
       ${this.isMe

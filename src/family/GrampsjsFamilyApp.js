@@ -287,6 +287,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
       _tree: {state: true},
       _treeState: {state: true},
       _marked: {state: true},
+      _detailsClosed: {state: true},
     }
   }
 
@@ -312,6 +313,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     this._tree = null
     this._treeState = ''
     this._marked = ''
+    this._detailsClosed = false
     this._treeCardsFor = null
     this._treeCardMap = new Map()
     this._loader = new NeighborhoodLoader(
@@ -319,6 +321,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
         fetchNeighborhoodGraph(this.appState.apiGet, grampsId, this._locale),
       state => {
         this._graph = state.graph
+        if (state.focus !== this._focus) this._detailsClosed = false
         this._focus = state.focus
         this._noStart = state.noStart
         this._error = state.error
@@ -387,9 +390,24 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     }
     const root = this._me || res.graph.people()[0]?.handle
     try {
-      const layout = root ? await layoutFullTree(res.graph, root) : EMPTY_LAYOUT
-      this._tree = {graph: res.graph, layout}
+      const orientation = this._orientation
+      const layout = root
+        ? await layoutFullTree(res.graph, root, orientation)
+        : EMPTY_LAYOUT
+      this._tree = {graph: res.graph, root, layout, orientation}
       this._treeState = ''
+    } catch (e) {
+      this._treeState = 'error'
+    }
+  }
+
+  async _relayoutTree() {
+    const tree = this._tree
+    if (!tree?.root || tree.orientation === this._orientation) return
+    const orientation = this._orientation
+    try {
+      const layout = await layoutFullTree(tree.graph, tree.root, orientation)
+      if (this._tree === tree) this._tree = {...tree, layout, orientation}
     } catch (e) {
       this._treeState = 'error'
     }
@@ -403,6 +421,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
       // ignore
     }
     if (view === 'tree' && !this._tree) this._loadTree()
+    else if (view === 'tree') this._relayoutTree()
   }
 
   _showInFamily() {
@@ -439,7 +458,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
   willUpdate() {
     this.toggleAttribute(
       'details',
-      Boolean(this._selectedGraph && this._selected)
+      Boolean(this._selectedGraph && this._selected && !this._detailsClosed)
     )
   }
 
@@ -450,6 +469,9 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
       changed.has('_tree')
     ) {
       this._loadKinship()
+    }
+    if (changed.has('_marked') || changed.has('_view')) {
+      this._detailsClosed = false
     }
     if (!changed.has('appState')) return
     const prev = changed.get('appState')
@@ -562,6 +584,7 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     } catch (e) {
       // ignore
     }
+    if (this._inTree) this._relayoutTree()
   }
 
   _onSearchInput(e) {
@@ -716,7 +739,9 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
     }
     const selected = this._selected
     const graph = this._selectedGraph
-    const hasDetails = Boolean(graph && selected && cards.get(selected))
+    const hasDetails = Boolean(
+      graph && selected && cards.get(selected) && !this._detailsClosed
+    )
     return html`
       <div class="main">
         <grampsjs-family-canvas
@@ -765,7 +790,6 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
             class="seg float"
             role="group"
             aria-label="${this._('Direction')}"
-            ?hidden="${this._inTree}"
           >
             <button
               aria-pressed="${this._orientation === ORIENTATION_TTB}"
@@ -832,6 +856,9 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
             ?familyLink="${this._inTree}"
             @family:action="${this._onAction}"
             @family:show-family="${this._showInFamily}"
+            @family:close-details="${() => {
+              this._detailsClosed = true
+            }}"
           ></grampsjs-family-details>`
         : ''}
       <grampsjs-family-add-person

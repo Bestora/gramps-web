@@ -6,7 +6,8 @@ import {familyStyles} from './familyStyles.js'
 import {fireEvent} from '../util.js'
 import {DRAG_THRESHOLD, isTap} from './loader.js'
 
-const MIN_SCALE = 0.4
+// low enough to see a whole large tree at once
+const MIN_SCALE = 0.05
 const MAX_SCALE = 2
 
 const reducedMotion = () =>
