@@ -122,3 +122,20 @@ describe('NeighborhoodLoader#reload', () => {
     expect(calls).toBe(0)
   })
 })
+
+describe('NeighborhoodLoader duplicate loads', () => {
+  it('shows the person when the same load is requested twice in a row', async () => {
+    const pending = deferred()
+    let calls = 0
+    const loader = new NeighborhoodLoader(() => {
+      calls += 1
+      return pending.promise
+    })
+    const first = loader.load('A')
+    const second = loader.load('A')
+    pending.resolve({graph: 'gA', focus: 'a'})
+    await Promise.all([first, second])
+    expect(calls).toBe(1)
+    expect(loader.state).toMatchObject({graph: 'gA', focus: 'a'})
+  })
+})

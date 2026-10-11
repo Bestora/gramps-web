@@ -28,6 +28,8 @@ export class NeighborhoodLoader {
   }
 
   async load(grampsId) {
+    // already shown or on its way: a new request would discard that answer
+    if (grampsId && grampsId === this._shown && !this.state.error) return
     this._request += 1
     const request = this._request
     if (!grampsId) {
@@ -35,7 +37,6 @@ export class NeighborhoodLoader {
       this._set({...EMPTY, noStart: true})
       return
     }
-    if (grampsId === this._shown && !this.state.error) return
     this._shown = grampsId
     const res = await this._fetchGraph(grampsId)
     if (request !== this._request) return
