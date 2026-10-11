@@ -5,7 +5,7 @@ Welcome to **Gramps Web**, a modern, feature-packed, free & open source web app 
 
 ## Familien-Modus (dieser Fork)
 
-Familienmitglieder, die über einen Share-Link kommen, sehen eine vereinfachte Oberfläche: den Stammbaum als Leinwand rund um eine Person, mit Suche, „Zu mir“ und umschaltbarer Richtung. Admins wechseln über das Konto-Menü zwischen dieser und der vollen Ansicht.
+Familienmitglieder, die über einen Share-Link kommen, sehen eine vereinfachte Oberfläche: den Stammbaum als Leinwand rund um eine Person, mit Suche, „Zu mir“ und umschaltbarer Richtung. Sie können Personen ergänzen (auch bei mehreren Ehen), Angaben ändern, Fotos hochladen und sehen, wie sie mit jemandem verwandt sind. Beim ersten Login verknüpft sich der Account per Name mit der eigenen Person. Admins legen in der Benutzerverwaltung pro Account fest, welche Oberfläche er bekommt, und wechseln selbst über das Konto-Menü.
 
 <p>
   <img src="images/family-mode-desktop.png" alt="Familien-Modus am PC" width="640">
