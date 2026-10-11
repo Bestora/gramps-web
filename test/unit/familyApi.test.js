@@ -5,6 +5,7 @@ import {
   fetchNeighborhoodGraph,
   fetchGrampsId,
   searchPeopleUrl,
+  fetchFullTreeGraph,
 } from '../../src/family/familyApi.js'
 
 const decodeRules = url =>
@@ -142,5 +143,25 @@ describe('fetchNeighborhoodGraph siblings', () => {
     const res = await fetchNeighborhoodGraph(apiGet, 'I1', 'de')
     expect(res.graph.person('K').profile.name_given).toBe('Kim')
     expect(calls[1]).toContain('handles=K')
+  })
+})
+
+describe('fetchFullTreeGraph', () => {
+  it('loads every person with their families', async () => {
+    let url = ''
+    const res = await fetchFullTreeGraph(async u => {
+      url = u
+      return {data: [{handle: 'A', gramps_id: 'I1'}]}
+    }, 'de')
+    expect(url).toBe(
+      '/api/people/?profile=self&extend=primary_parent_family,family_list,parent_family_list&locale=de'
+    )
+    expect(res.graph.person('A').gramps_id).toBe('I1')
+  })
+
+  it('passes errors through', async () => {
+    expect(await fetchFullTreeGraph(async () => ({error: 'x'}), 'de')).toEqual({
+      error: 'x',
+    })
   })
 })

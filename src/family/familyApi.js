@@ -69,3 +69,11 @@ export function relationUrls(me, other, locale) {
 export function personUrl(handle, locale) {
   return `/api/people/${handle}?extend=event_ref_list&profile=self&locale=${locale}`
 }
+
+export async function fetchFullTreeGraph(apiGet, locale) {
+  const res = await apiGet(
+    `/api/people/?profile=self&extend=${EXTEND}&locale=${locale}`
+  )
+  if ('error' in res) return {error: res.error}
+  return {graph: new FamilyGraph(res.data ?? [])}
+}
