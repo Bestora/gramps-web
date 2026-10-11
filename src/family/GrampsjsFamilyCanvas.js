@@ -75,6 +75,12 @@ class GrampsjsFamilyCanvas extends GrampsjsAppStateMixin(LitElement) {
           color: var(--fm-focus-fg);
           box-shadow: 0 0 0 6px rgba(30, 43, 36, 0.12);
         }
+        .card.me {
+          box-shadow: 0 0 0 3px var(--fm-moss);
+        }
+        .card.focus.me {
+          box-shadow: 0 0 0 3px var(--fm-moss), 0 0 0 9px rgba(30, 43, 36, 0.12);
+        }
         .card.unknown {
           border-style: dashed;
           color: var(--fm-muted);
@@ -159,6 +165,8 @@ class GrampsjsFamilyCanvas extends GrampsjsAppStateMixin(LitElement) {
       layout: {type: Object},
       cards: {type: Object},
       selected: {type: String},
+      marked: {type: String},
+      tapEvent: {type: String},
       dragging: {type: Boolean, reflect: true},
       _tx: {state: true},
       _ty: {state: true},
@@ -172,6 +180,8 @@ class GrampsjsFamilyCanvas extends GrampsjsAppStateMixin(LitElement) {
     this.layout = {nodes: [], edges: [], width: 0, height: 0}
     this.cards = new Map()
     this.selected = ''
+    this.marked = ''
+    this.tapEvent = 'family:select'
     this.dragging = false
     this._tx = 0
     this._ty = 0
@@ -274,7 +284,7 @@ class GrampsjsFamilyCanvas extends GrampsjsAppStateMixin(LitElement) {
   _select(e, handle) {
     // a drag that ends on a card is not a tap
     if (!handle || !isTap(e, this._moved)) return
-    fireEvent(this, 'family:select', {handle})
+    fireEvent(this, this.tapEvent, {handle})
   }
 
   _subtitle(node, card) {
@@ -335,7 +345,9 @@ class GrampsjsFamilyCanvas extends GrampsjsAppStateMixin(LitElement) {
     >`
     const name = node.kind === 'unknown' ? this._('Unknown') : card?.name
     return html`<button
-      class="card ${kind}"
+      class="card ${kind} ${node.handle && node.handle === this.marked
+        ? 'me'
+        : ''}"
       style="left:${node.x}px;top:${node.y}px;width:${node.w}px;height:${node.h}px"
       title="${name ?? ''}"
       ?disabled="${node.kind === 'unknown'}"
