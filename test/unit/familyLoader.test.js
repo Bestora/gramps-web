@@ -98,3 +98,27 @@ describe('isTap', () => {
     expect(isTap({detail: 1}, 2)).toBe(true)
   })
 })
+
+describe('NeighborhoodLoader#reload', () => {
+  it('fetches the shown person again', async () => {
+    let calls = 0
+    const loader = new NeighborhoodLoader(async id => {
+      calls += 1
+      return {graph: `g${calls}`, focus: id}
+    })
+    await loader.load('A')
+    await loader.reload()
+    expect(calls).toBe(2)
+    expect(loader.state.graph).toBe('g2')
+  })
+
+  it('does nothing without a shown person', async () => {
+    let calls = 0
+    const loader = new NeighborhoodLoader(async () => {
+      calls += 1
+      return {graph: 'g', focus: 'f'}
+    })
+    await loader.reload()
+    expect(calls).toBe(0)
+  })
+})

@@ -130,3 +130,51 @@ describe.each([ORIENTATION_LTR, ORIENTATION_TTB])(
     })
   }
 )
+
+describe('layoutNeighborhood ghosts', () => {
+  const half = {
+    ...lonely,
+    parents: {father: 'H', mother: null},
+    partners: [
+      {
+        familyHandle: 'f1',
+        partner: 'K',
+        children: [{handle: 'P', childCount: 0}],
+      },
+    ],
+  }
+
+  it('adds no placeholders by default', () => {
+    const layout = layoutNeighborhood(half, ORIENTATION_LTR)
+    expect(layout.nodes.filter(n => n.kind === 'ghost')).toHaveLength(0)
+  })
+
+  it.each([ORIENTATION_LTR, ORIENTATION_TTB])(
+    'adds a parent and a child placeholder without overlap (%s)',
+    orientation => {
+      const layout = layoutNeighborhood(half, orientation, {ghosts: true})
+      const ghosts = layout.nodes.filter(n => n.kind === 'ghost')
+      expect(ghosts.map(n => n.relation).sort()).toEqual(['child', 'parent'])
+      for (let i = 0; i < layout.nodes.length; i += 1) {
+        for (let j = i + 1; j < layout.nodes.length; j += 1) {
+          expect(overlaps(layout.nodes[i], layout.nodes[j])).toBe(false)
+        }
+      }
+    }
+  )
+
+  it('offers a child placeholder for a person without children', () => {
+    const layout = layoutNeighborhood(lonely, ORIENTATION_LTR, {ghosts: true})
+    expect(
+      layout.nodes
+        .map(n => n.relation)
+        .filter(Boolean)
+        .sort()
+    ).toEqual(['child', 'parent'])
+  })
+
+  it('offers no parent placeholder when both parents are known', () => {
+    const layout = layoutNeighborhood(full, ORIENTATION_LTR, {ghosts: true})
+    expect(layout.nodes.filter(n => n.relation === 'parent')).toHaveLength(0)
+  })
+})

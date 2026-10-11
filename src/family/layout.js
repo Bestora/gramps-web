@@ -13,7 +13,11 @@ const SIB_GAP = 16
 const GROUP_GAP = 28
 const LABEL_EXT = 24
 
-export function layoutNeighborhood(model, orientation = ORIENTATION_LTR) {
+export function layoutNeighborhood(
+  model,
+  orientation = ORIENTATION_LTR,
+  {ghosts = false} = {}
+) {
   const ltr = orientation !== ORIENTATION_TTB
   const ext = box => (ltr ? box.h : box.w) // size along s
   const len = box => (ltr ? box.w : box.h) // size along g
@@ -81,7 +85,8 @@ export function layoutNeighborhood(model, orientation = ORIENTATION_LTR) {
     labelExt + p.children.length * (ext(CARD) + SIB_GAP) - SIB_GAP
   const blockExt =
     groups.reduce((sum, grp) => sum + groupExt(grp), 0) +
-    Math.max(groups.length - 1, 0) * GROUP_GAP
+    Math.max(groups.length - 1, 0) * GROUP_GAP +
+    (ghosts ? (groups.length ? GROUP_GAP : 0) + ext(CARD) : 0)
   const columnTop = focus.s
   const columnBottom = (lastPartner ?? focus).s + (lastPartner ?? focus).sl
   let cursor = (columnTop + columnBottom) / 2 - blockExt / 2
@@ -111,6 +116,14 @@ export function layoutNeighborhood(model, orientation = ORIENTATION_LTR) {
     }
     cursor += GROUP_GAP - SIB_GAP
   }
+  if (ghosts) {
+    const item = place('ghost-child', 3, cursor + ext(CARD) / 2, CARD, {
+      kind: 'ghost',
+      relation: 'child',
+      handle: null,
+    })
+    elbow(far(focus), near(item))
+  }
 
   // parents, spaced so that both grandparent pairs fit
   const fc = mid(focus)
@@ -120,9 +133,21 @@ export function layoutNeighborhood(model, orientation = ORIENTATION_LTR) {
     ['father', fc - parentDist / 2, 'paternal'],
     ['mother', fc + parentDist / 2, 'maternal'],
   ]
+  let placedParentGhost = false
   for (const [role, center, side] of sides) {
     const handle = model.parents[role]
-    if (!handle) continue
+    if (!handle) {
+      if (ghosts && !placedParentGhost) {
+        placedParentGhost = true
+        const item = place('ghost-parent', 1, center, CARD, {
+          kind: 'ghost',
+          relation: 'parent',
+          handle: null,
+        })
+        elbow(far(item), near(focus))
+      }
+      continue
+    }
     const parent = place(`parent-${role}`, 1, center, CARD, {
       kind: 'person',
       handle,

@@ -46,6 +46,13 @@ export class NeighborhoodLoader {
     }
     this._set({...EMPTY, graph: res.graph, focus: res.focus})
   }
+
+  async reload() {
+    if (!this._shown) return
+    const grampsId = this._shown
+    this._shown = null
+    await this.load(grampsId)
+  }
 }
 
 // Remembers the last layout, so that re-renders which do not change the
