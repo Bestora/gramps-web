@@ -24,7 +24,8 @@ import {
   fetchFullTreeGraph,
 } from './familyApi.js'
 import {layoutFullTree} from './fullTree.js'
-import {findPath, stepRole, inLawRelation} from './path.js'
+import {findPath, stepRole, inLawRelation, connectedPeople} from './path.js'
+import {FamilyGraph} from '../charts/model/FamilyGraph.js'
 import {kinship as buildKinship} from './kinship.js'
 import {myPersonHandle, onboardingDone} from './me.js'
 import {canSwitchUiMode, setUiModeOverride, UI_MODE_FULL} from './uiMode.js'
@@ -397,13 +398,19 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
       this._treeState = 'error'
       return
     }
-    const root = this._me || res.graph.people()[0]?.handle
+    const root = this._me || this._focus || res.graph.people()[0]?.handle || ''
+    // only the people connected to "you": unrelated trees in the same
+    // database are left out
+    const connected = connectedPeople(res.graph, root)
+    const graph = new FamilyGraph(
+      res.graph.people().filter(p => connected.has(p.handle))
+    )
     try {
       const orientation = this._orientation
       const layout = root
-        ? await layoutFullTree(res.graph, root, orientation)
+        ? await layoutFullTree(graph, root, orientation)
         : EMPTY_LAYOUT
-      this._tree = {graph: res.graph, root, layout, orientation}
+      this._tree = {graph, root, layout, orientation}
       this._treeState = ''
     } catch (e) {
       this._treeState = 'error'
@@ -661,11 +668,13 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
   _openResult(result) {
     this._query = ''
     this._results = []
-    if (this._inTree) {
+    if (this._inTree && this._tree?.graph.person(result.object.handle)) {
       this._marked = result.object.handle
       this._canvas()?.centerOn(result.object.handle)
       return
     }
+    // not connected to you, so not in the whole tree: show their family
+    if (this._inTree) this._setView('family')
     fireEvent(this, 'nav', {path: `person/${result.object.gramps_id}`})
   }
 

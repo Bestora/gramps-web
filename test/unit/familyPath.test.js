@@ -5,6 +5,7 @@ import {
   stepRole,
   pathPoints,
   inLawRelation,
+  connectedPeople,
 } from '../../src/family/path.js'
 
 const ref = r => ({ref: r})
@@ -196,5 +197,19 @@ describe('inLawRelation', () => {
   it('has no name for other ways', () => {
     expect(inLawRelation(steps(['parent', 1], ['parent', 0]))).toBe('')
     expect(inLawRelation([])).toBe('')
+  })
+})
+
+describe('connectedPeople', () => {
+  it('collects everyone reachable over parents, children and partners', () => {
+    const reachable = connectedPeople(graph, 'D')
+    expect([...reachable].sort()).toEqual(
+      ['D', 'E', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'U'].sort()
+    )
+    expect(reachable.has('R')).toBe(false)
+  })
+
+  it('is empty for an unknown person', () => {
+    expect(connectedPeople(graph, 'nobody').size).toBe(0)
   })
 })

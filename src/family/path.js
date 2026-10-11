@@ -99,3 +99,21 @@ export function inLawRelation(steps) {
   if (!names || (gender !== 0 && gender !== 1)) return ''
   return names[gender]
 }
+
+// Handles of everyone connected to `start` over any chain of parents,
+// children and partners, `start` included
+export function connectedPeople(graph, start) {
+  const seen = new Set()
+  if (!graph.person(start)) return seen
+  const queue = [start]
+  seen.add(start)
+  while (queue.length) {
+    for (const next of neighbours(graph, queue.shift())) {
+      if (!seen.has(next.handle) && graph.person(next.handle)) {
+        seen.add(next.handle)
+        queue.push(next.handle)
+      }
+    }
+  }
+  return seen
+}
