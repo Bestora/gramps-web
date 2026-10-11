@@ -81,4 +81,82 @@ export const familyStyles = css`
     font-size: 15px;
     cursor: pointer;
   }
+
+  .field {
+    display: block;
+    margin-bottom: 12px;
+  }
+  .field > span {
+    display: block;
+    font-size: 14px;
+    color: var(--fm-muted);
+    margin-bottom: 4px;
+  }
+  .input {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 44px;
+    border: 1.5px solid var(--fm-border);
+    border-radius: 12px;
+    padding: 8px 12px;
+    font: inherit;
+    font-size: 16px;
+    background: var(--fm-card);
+    color: var(--fm-ink);
+  }
+  .input:focus-visible {
+    outline: 3px solid var(--fm-focus-ring);
+    outline-offset: 1px;
+  }
+  .input[aria-invalid='true'] {
+    border-color: #b3261e;
+  }
+  .error {
+    color: #b3261e;
+    font-size: 14px;
+    margin-top: 4px;
+  }
+  .primary {
+    width: 100%;
+    min-height: 48px;
+    border: none;
+    border-radius: 14px;
+    background: var(--fm-add);
+    color: #fff;
+    font-weight: 700;
+    font-size: 17px;
+    cursor: pointer;
+  }
+  .primary:disabled {
+    opacity: 0.6;
+    cursor: progress;
+  }
+  .secondary {
+    min-height: 44px;
+    border: none;
+    border-radius: 12px;
+    background: var(--fm-leaf);
+    font-weight: 700;
+    padding: 0 16px;
+    cursor: pointer;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .chip {
+    min-height: 40px;
+    border: 1.5px solid var(--fm-border);
+    border-radius: 999px;
+    padding: 0 14px;
+    background: var(--fm-card);
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .chip[aria-pressed='true'] {
+    border-color: var(--fm-moss);
+    background: var(--fm-leaf);
+  }
 `
