@@ -76,7 +76,7 @@ class GrampsjsFamilyDetails extends GrampsjsAppStateMixin(LitElement) {
         }
         .actions .add {
           background: var(--fm-add);
-          color: #fff;
+          color: var(--fm-on-add);
         }
         @media (max-width: 991px) {
           :host(:not([expanded])) .kin {

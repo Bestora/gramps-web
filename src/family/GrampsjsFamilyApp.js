@@ -66,7 +66,9 @@ class GrampsjsFamilyApp extends GrampsjsAppStateMixin(LitElement) {
         grampsjs-family-photo,
         grampsjs-family-onboarding {
           /* dialogs live in the top layer, not in the grid */
-          display: contents;
+          position: absolute;
+          width: 0;
+          height: 0;
         }
         .main {
           position: relative;

@@ -313,7 +313,7 @@ class GrampsjsFamilyPersonForm extends GrampsjsAppStateMixin(LitElement) {
                   fireEvent(this, 'family-form:link', {handle: o.handle})}"
               >
                 <span>${card.name} <small>${card.years}</small></span>
-                <em>${this._('Link')}</em>
+                <em>${this._('Link this person')}</em>
               </button>`
             })}
           </div>`

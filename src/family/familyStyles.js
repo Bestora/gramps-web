@@ -17,6 +17,7 @@ export const familyTokens = css`
     --fm-card: #ffffff;
     --fm-add: #a8661a;
     --fm-add-tint: #f6ead9;
+    --fm-on-add: #ffffff;
     --fm-focus-ring: #2f6fdb;
     --fm-focus-bg: #1e2b24;
     --fm-focus-fg: #f7f8f5;
@@ -40,6 +41,7 @@ export const familyTokens = css`
     --fm-card: #1c2420;
     --fm-add: #e0a35a;
     --fm-add-tint: #3a2c1c;
+    --fm-on-add: #1e1408;
     --fm-focus-ring: #7aa7ff;
     --fm-focus-bg: #cfe3d5;
     --fm-focus-fg: #121714;
@@ -122,7 +124,7 @@ export const familyStyles = css`
     border: none;
     border-radius: 14px;
     background: var(--fm-add);
-    color: #fff;
+    color: var(--fm-on-add);
     font-weight: 700;
     font-size: 17px;
     cursor: pointer;
