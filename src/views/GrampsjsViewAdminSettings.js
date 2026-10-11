@@ -20,7 +20,10 @@ import {
   TREE_CONFIG_SECONDARY_COLOR,
   TREE_CONFIG_HOME_PAGE_NOTE,
   TREE_CONFIG_HOME_PAGE_IMAGE,
+  TREE_CONFIG_HIDDEN_MENUS,
+  isMenuHidden,
 } from '../api.js'
+import {MENU_ITEMS} from '../components/GrampsjsMainMenu.js'
 import {DEFAULT_PRIMARY, DEFAULT_SECONDARY} from '../theme.js'
 import {
   mdiAlertCircle,
@@ -493,6 +496,21 @@ export class GrampsjsViewAdminSettings extends GrampsjsView {
             @select-object:changed="${this._handleHomePageImageSelected}"
           ></grampsjs-form-select-object>
         </p>
+
+        <h3>${this._('Menu')}</h3>
+        <div class="verify-bool-options">
+          ${MENU_ITEMS.map(
+            ([key, label]) => html`
+              <label class="verify-option-bool">
+                <md-switch
+                  ?selected="${!isMenuHidden(this.appState, key)}"
+                  @change="${e => this._toggleMenu(key, e.target.selected)}"
+                ></md-switch>
+                ${this._(label)}
+              </label>
+            `
+          )}
+        </div>
 
         <h3>${this._('Export/Import settings')}</h3>
         <p style="display: flex; gap: 0.75em; flex-wrap: wrap;">
@@ -1227,6 +1245,19 @@ export class GrampsjsViewAdminSettings extends GrampsjsView {
     } else {
       this._primaryColor = DEFAULT_PRIMARY
       this._secondaryColor = DEFAULT_SECONDARY
+    }
+  }
+
+  async _toggleMenu(key, visible) {
+    const hidden = (this.appState.treeConfig?.[TREE_CONFIG_HIDDEN_MENUS] ?? '')
+      .split(',')
+      .filter(k => k && k !== key)
+    if (!visible) hidden.push(key)
+    const data = await this.appState.updateTreeConfig({
+      [TREE_CONFIG_HIDDEN_MENUS]: hidden.join(','),
+    })
+    if (data && 'error' in data) {
+      fireEvent(this, 'grampsjs:error', {message: data.error})
     }
   }
 

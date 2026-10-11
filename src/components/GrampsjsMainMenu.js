@@ -29,8 +29,26 @@ import {
 import {sharedStyles} from '../SharedStyles.js'
 import {GrampsjsAppStateMixin} from '../mixins/GrampsjsAppStateMixin.js'
 import './GrampsjsIcon.js'
+import {isMenuHidden} from '../api.js'
 
 const BASE_DIR = ''
+
+// menu entries an admin can hide (Home always stays)
+export const MENU_ITEMS = [
+  ['blog', 'Blog'],
+  ['tree', 'Family Tree'],
+  ['timeline', 'Timeline'],
+  ['map', 'Map'],
+  ['dna', 'DNA'],
+  ['lists', 'Lists'],
+  ['media', 'Media'],
+  ['recent', 'History'],
+  ['bookmarks', '_Bookmarks'],
+  ['tasks', 'Tasks'],
+  ['reports', '_Reports'],
+  ['export', 'Export'],
+  ['notifications', 'Notifications'],
+]
 
 const selectedColor = 'var(--grampsjs-color-icon-selected)'
 const defaultColor = 'var(--grampsjs-color-icon-default)'
@@ -50,6 +68,10 @@ class GrampsjsAppBar extends GrampsjsAppStateMixin(LitElement) {
         md-list-item[selected] {
           --md-list-item-label-text-color: var(--grampsjs-color-icon-selected);
           --md-list-item-label-text-weight: 500;
+        }
+
+        md-list-item[hidden] {
+          display: none;
         }
 
         md-divider {
@@ -118,6 +140,10 @@ class GrampsjsAppBar extends GrampsjsAppStateMixin(LitElement) {
     this.unreadCount = e.detail.unreadCount
   }
 
+  _hidden(key) {
+    return isMenuHidden(this.appState, key)
+  }
+
   _icon(path, isSelected) {
     return html`<grampsjs-icon
       slot="start"
@@ -149,6 +175,7 @@ class GrampsjsAppBar extends GrampsjsAppStateMixin(LitElement) {
       <md-list-item
         type="link"
         href="${BASE_DIR}/blog"
+        ?hidden="${this._hidden('blog')}"
         ?selected="${p === 'blog'}"
       >
         ${this._icon(mdiRss, p === 'blog')} ${this._('Blog')}
@@ -156,6 +183,7 @@ class GrampsjsAppBar extends GrampsjsAppStateMixin(LitElement) {
       <md-list-item
         type="link"
         href="${BASE_DIR}/tree"
+        ?hidden="${this._hidden('tree')}"
         ?selected="${p === 'tree'}"
       >
         ${this._icon(mdiFamilyTree, p === 'tree')} ${this._('Family Tree')}
@@ -163,6 +191,7 @@ class GrampsjsAppBar extends GrampsjsAppStateMixin(LitElement) {
       <md-list-item
         type="link"
         href="${BASE_DIR}/timeline"
+        ?hidden="${this._hidden('timeline')}"
         ?selected="${p === 'timeline'}"
       >
         ${this._icon(mdiTimelineOutline, p === 'timeline')}
@@ -171,30 +200,27 @@ class GrampsjsAppBar extends GrampsjsAppStateMixin(LitElement) {
       <md-list-item
         type="link"
         href="${BASE_DIR}/map"
+        ?hidden="${this._hidden('map')}"
         ?selected="${p === 'map'}"
       >
         ${this._icon(mdiMap, p === 'map')} ${this._('Map')}
       </md-list-item>
-      ${this.appState.frontendConfig.hideDNALink
-        ? ''
-        : html`
-            <md-list-item
-              type="link"
-              href="${BASE_DIR}/dna-matches"
-              ?selected="${['dna-matches', 'dna-chromosome', 'ydna'].includes(
-                p
-              )}"
-            >
-              ${this._icon(
-                mdiDna,
-                ['dna-matches', 'dna-chromosome', 'ydna'].includes(p)
-              )}
-              ${this._('DNA')}
-            </md-list-item>
-          `}
+      <md-list-item
+        type="link"
+        href="${BASE_DIR}/dna-matches"
+        ?hidden="${this._hidden('dna')}"
+        ?selected="${['dna-matches', 'dna-chromosome', 'ydna'].includes(p)}"
+      >
+        ${this._icon(
+          mdiDna,
+          ['dna-matches', 'dna-chromosome', 'ydna'].includes(p)
+        )}
+        ${this._('DNA')}
+      </md-list-item>
       <md-list-item
         type="link"
         href="${BASE_DIR}/people"
+        ?hidden="${this._hidden('lists')}"
         ?selected="${listsPages.includes(p)}"
       >
         ${this._icon(mdiFormatListBulleted, listsPages.includes(p))}
@@ -203,6 +229,7 @@ class GrampsjsAppBar extends GrampsjsAppStateMixin(LitElement) {
       <md-list-item
         type="link"
         href="${BASE_DIR}/medialist"
+        ?hidden="${this._hidden('media')}"
         ?selected="${p === 'medialist'}"
       >
         ${this._icon(mdiImage, p === 'medialist')} ${this._('Media')}
@@ -222,6 +249,7 @@ class GrampsjsAppBar extends GrampsjsAppStateMixin(LitElement) {
       <md-list-item
         type="link"
         href="${BASE_DIR}/recent"
+        ?hidden="${this._hidden('recent')}"
         ?selected="${p === 'recent'}"
       >
         ${this._icon(mdiHistory, p === 'recent')} ${this._('History')}
@@ -229,6 +257,7 @@ class GrampsjsAppBar extends GrampsjsAppStateMixin(LitElement) {
       <md-list-item
         type="link"
         href="${BASE_DIR}/bookmarks"
+        ?hidden="${this._hidden('bookmarks')}"
         ?selected="${p === 'bookmarks'}"
       >
         ${this._icon(mdiBookmark, p === 'bookmarks')} ${this._('_Bookmarks')}
@@ -236,6 +265,7 @@ class GrampsjsAppBar extends GrampsjsAppStateMixin(LitElement) {
       <md-list-item
         type="link"
         href="${BASE_DIR}/tasks"
+        ?hidden="${this._hidden('tasks')}"
         ?selected="${p === 'tasks'}"
       >
         ${this._icon(mdiFormatListChecks, p === 'tasks')} ${this._('Tasks')}
@@ -243,6 +273,7 @@ class GrampsjsAppBar extends GrampsjsAppStateMixin(LitElement) {
       <md-list-item
         type="link"
         href="${BASE_DIR}/reports"
+        ?hidden="${this._hidden('reports')}"
         ?selected="${p === 'reports'}"
       >
         ${this._icon(mdiFileExportOutline, p === 'reports')}
@@ -251,6 +282,7 @@ class GrampsjsAppBar extends GrampsjsAppStateMixin(LitElement) {
       <md-list-item
         type="link"
         href="${BASE_DIR}/export"
+        ?hidden="${this._hidden('export')}"
         ?selected="${p === 'export'}"
       >
         ${this._icon(mdiDownload, p === 'export')} ${this._('Export')}
@@ -271,6 +303,7 @@ class GrampsjsAppBar extends GrampsjsAppStateMixin(LitElement) {
       <md-list-item
         type="link"
         href="${BASE_DIR}/notifications"
+        ?hidden="${this._hidden('notifications')}"
         ?selected="${p === 'notifications'}"
       >
         ${this._icon(

@@ -189,6 +189,17 @@ export const TREE_CONFIG_PRIMARY_COLOR = 'frontend.primaryColor'
 export const TREE_CONFIG_SECONDARY_COLOR = 'frontend.secondaryColor'
 export const TREE_CONFIG_HOME_PAGE_NOTE = 'frontend.homePageNote'
 export const TREE_CONFIG_HOME_PAGE_IMAGE = 'frontend.homePageImage'
+// comma-separated menu keys, see MENU_ITEMS in GrampsjsMainMenu.js
+export const TREE_CONFIG_HIDDEN_MENUS = 'frontend.hiddenMenus'
+
+export function isMenuHidden(appState, key) {
+  if (key === 'dna' && appState.frontendConfig?.hideDNALink) {
+    return true
+  }
+  return (appState.treeConfig?.[TREE_CONFIG_HIDDEN_MENUS] ?? '')
+    .split(',')
+    .includes(key)
+}
 
 export function getTreeConfig() {
   try {

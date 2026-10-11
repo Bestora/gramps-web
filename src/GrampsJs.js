@@ -18,6 +18,7 @@ import {
   clearMediaCaches,
   cleanOldDrafts,
   TREE_CONFIG_APP_TITLE,
+  isMenuHidden,
   TREE_CONFIG_PRIMARY_COLOR,
   TREE_CONFIG_SECONDARY_COLOR,
 } from './api.js'
@@ -437,7 +438,7 @@ export class GrampsJs extends LitElement {
                 <dd>${this._('Timeline')}</dd>
                 <dt><span>g</span> <span>m</span></dt>
                 <dd>${this._('Map')}</dd>
-                ${this.appState.frontendConfig.hideDNALink
+                ${isMenuHidden(this.appState, 'dna')
                   ? ''
                   : html`<dt><span>g</span> <span>d</span></dt>
                       <dd>${this._('DNA')}</dd>`}
@@ -1350,7 +1351,7 @@ export class GrampsJs extends LitElement {
       } else if (e.key === 'i') {
         fireEvent(this, 'nav', {path: 'medialist'})
       } else if (e.key === 'd') {
-        if (!this.appState.frontendConfig.hideDNALink) {
+        if (!isMenuHidden(this.appState, 'dna')) {
           fireEvent(this, 'nav', {path: 'dna-matches'})
         }
       } else if (e.key === 'a') {

@@ -1,0 +1,59 @@
+# Gramps Web (this fork's frontend + upstream API), reachable on :8017
+x-grampsweb: &grampsweb
+  build:
+    context: .
+    dockerfile_inline: |
+      FROM node:22 AS build
+      WORKDIR /src
+      COPY package*.json ./
+      RUN npm ci --ignore-scripts
+      COPY . .
+      RUN npm run build
+
+      FROM dmstraub/gramps-webapi:latest
+      COPY --from=build /src/dist /app/static
+  image: grampsweb-fork:latest
+  restart: unless-stopped
+  environment:
+    GRAMPSWEB_TREE: 'Gramps Web'
+    GRAMPSWEB_SECRET_KEY: ${GRAMPSWEB_SECRET_KEY:?set GRAMPSWEB_SECRET_KEY in .env}
+    GRAMPSWEB_CELERY_CONFIG__broker_url: redis://grampsweb_redis:6379/0
+    GRAMPSWEB_CELERY_CONFIG__result_backend: redis://grampsweb_redis:6379/0
+    GRAMPSWEB_RATELIMIT_STORAGE_URI: redis://grampsweb_redis:6379/1
+  volumes:
+    - gramps_users:/app/users
+    - gramps_index:/app/indexdir
+    - gramps_thumb_cache:/app/thumbnail_cache
+    - gramps_cache:/app/cache
+    - gramps_secret:/app/secret
+    - gramps_db:/root/.gramps/grampsdb
+    - gramps_media:/app/media
+    - gramps_tmp:/tmp
+
+services:
+  grampsweb:
+    <<: *grampsweb
+    ports:
+      - '8017:5000'
+    depends_on:
+      - grampsweb_redis
+
+  grampsweb_celery:
+    <<: *grampsweb
+    depends_on:
+      - grampsweb_redis
+    command: celery -A gramps_webapi.celery worker --loglevel=INFO --concurrency=2
+
+  grampsweb_redis:
+    image: redis:7.2.4-alpine
+    restart: unless-stopped
+
+volumes:
+  gramps_users:
+  gramps_index:
+  gramps_thumb_cache:
+  gramps_cache:
+  gramps_secret:
+  gramps_db:
+  gramps_media:
+  gramps_tmp:
